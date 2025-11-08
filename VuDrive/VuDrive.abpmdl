@@ -1,0 +1,103 @@
+{
+  "template": "app",
+  "imports": {
+    "Volo.Abp.LeptonXLiteTheme": {
+      "version": "4.3.6",
+      "isInstalled": true
+    },
+    "Volo.Abp.Account": {
+      "version": "9.3.6",
+      "isInstalled": true,
+      "creationTime": "11/05/2025 22:36:10 +00:00"
+    },
+    "Volo.Abp.OpenIddict": {
+      "version": "9.3.6",
+      "isInstalled": true,
+      "creationTime": "11/05/2025 22:36:10 +00:00"
+    },
+    "Volo.Abp.Identity": {
+      "version": "9.3.6",
+      "isInstalled": true,
+      "creationTime": "11/05/2025 22:36:10 +00:00"
+    },
+    "Volo.Abp.SettingManagement": {
+      "version": "9.3.6",
+      "isInstalled": true,
+      "creationTime": "11/05/2025 22:36:10 +00:00"
+    },
+    "Volo.Abp.PermissionManagement": {
+      "version": "9.3.6",
+      "isInstalled": true,
+      "creationTime": "11/05/2025 22:36:10 +00:00"
+    },
+    "Volo.Abp.FeatureManagement": {
+      "version": "9.3.6",
+      "isInstalled": true,
+      "creationTime": "11/05/2025 22:36:10 +00:00"
+    }
+  },
+  "folders": {
+    "items": {
+      "src": {},
+      "test": {}
+    }
+  },
+  "packages": {
+    "VuDrive.Application": {
+      "path": "src/VuDrive.Application/VuDrive.Application.abppkg",
+      "folder": "src"
+    },
+    "VuDrive.Application.Tests": {
+      "path": "test/VuDrive.Application.Tests/VuDrive.Application.Tests.abppkg",
+      "folder": "test"
+    },
+    "VuDrive.Domain.Shared": {
+      "path": "src/VuDrive.Domain.Shared/VuDrive.Domain.Shared.abppkg",
+      "folder": "src"
+    },
+    "VuDrive.Application.Contracts": {
+      "path": "src/VuDrive.Application.Contracts/VuDrive.Application.Contracts.abppkg",
+      "folder": "src"
+    },
+    "VuDrive.HttpApi": {
+      "path": "src/VuDrive.HttpApi/VuDrive.HttpApi.abppkg",
+      "folder": "src"
+    },
+    "VuDrive.HttpApi.Client": {
+      "path": "src/VuDrive.HttpApi.Client/VuDrive.HttpApi.Client.abppkg",
+      "folder": "src"
+    },
+    "VuDrive.EntityFrameworkCore.Tests": {
+      "path": "test/VuDrive.EntityFrameworkCore.Tests/VuDrive.EntityFrameworkCore.Tests.abppkg",
+      "folder": "test"
+    },
+    "VuDrive.EntityFrameworkCore": {
+      "path": "src/VuDrive.EntityFrameworkCore/VuDrive.EntityFrameworkCore.abppkg",
+      "folder": "src"
+    },
+    "VuDrive.TestBase": {
+      "path": "test/VuDrive.TestBase/VuDrive.TestBase.abppkg",
+      "folder": "test"
+    },
+    "VuDrive.Domain.Tests": {
+      "path": "test/VuDrive.Domain.Tests/VuDrive.Domain.Tests.abppkg",
+      "folder": "test"
+    },
+    "VuDrive.HttpApi.Client.ConsoleTestApp": {
+      "path": "test/VuDrive.HttpApi.Client.ConsoleTestApp/VuDrive.HttpApi.Client.ConsoleTestApp.abppkg",
+      "folder": "test"
+    },
+    "VuDrive.DbMigrator": {
+      "path": "src/VuDrive.DbMigrator/VuDrive.DbMigrator.abppkg",
+      "folder": "src"
+    },
+    "VuDrive.Blazor": {
+      "path": "src/VuDrive.Blazor/VuDrive.Blazor.abppkg",
+      "folder": "src"
+    },
+    "VuDrive.Domain": {
+      "path": "src/VuDrive.Domain/VuDrive.Domain.abppkg",
+      "folder": "src"
+    }
+  }
+}

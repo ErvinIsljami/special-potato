@@ -1,0 +1,75 @@
+﻿@page "/displays/edit/{Id:guid?}"
+@using VuDrive.Displays
+@attribute [Authorize]
+@inject IDisplayAppService AppService
+@inject NavigationManager Nav
+
+<h3>@(Id.HasValue ? "Edit Display" : "New Display")</h3>
+
+<EditForm Model="@Model" OnValidSubmit="Save">
+    <DataAnnotationsValidator />
+
+    <div class="mb-3">
+        <label class="form-label" for="dname">Name</label>
+        <InputText id="dname" class="form-control" @bind-Value="Model.Name" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="dsize">Size (inches)</label>
+        <InputNumber id="dsize" class="form-control" @bind-Value="Model.SizeInInches" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="dandroid">Android version</label>
+        <InputText id="dandroid" class="form-control" @bind-Value="Model.AndroidVersion" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="dram">RAM (GB)</label>
+        <InputNumber id="dram" class="form-control" @bind-Value="Model.Ram" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="dmem">Memory (GB)</label>
+        <InputNumber id="dmem" class="form-control" @bind-Value="Model.Memory" />
+    </div>
+
+    <div class="mb-4">
+        <label class="form-label" for="dcpu">CPU</label>
+        <InputText id="dcpu" class="form-control" @bind-Value="Model.Cpu" />
+    </div>
+
+    <button type="submit" class="btn btn-primary me-2">Save</button>
+    <button type="button" class="btn btn-secondary" @onclick="Back">Cancel</button>
+</EditForm>
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+    CreateUpdateDisplayDto Model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id.HasValue)
+        {
+            var dto = await AppService.GetAsync(Id.Value);
+            Model = new()
+                {
+                    Name = dto.Name,
+                    SizeInInches = dto.SizeInInches,
+                    AndroidVersion = dto.AndroidVersion,
+                    Ram = dto.Ram,
+                    Memory = dto.Memory,
+                    Cpu = dto.Cpu
+                };
+        }
+    }
+
+    async Task Save()
+    {
+        if (Id.HasValue) await AppService.UpdateAsync(Id.Value, Model);
+        else await AppService.CreateAsync(Model);
+        Back();
+    }
+
+    void Back() => Nav.NavigateTo("/displays");
+}

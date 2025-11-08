@@ -1,0 +1,71 @@
+﻿@page "/cars/edit/{Id:guid?}"
+@attribute [Authorize]
+@inject ICarAppService CarAppService
+@inject NavigationManager Nav
+
+<h3>@(Id.HasValue ? "Edit Car" : "New Car")</h3>
+
+<EditForm Model="@Model" OnValidSubmit="Save">
+    <DataAnnotationsValidator />
+
+    <div class="mb-3">
+        <label class="form-label" for="mark">Mark</label>
+        <InputText id="mark" class="form-control" @bind-Value="Model.Mark" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="model">Model</label>
+        <InputText id="model" class="form-control" @bind-Value="Model.Model" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="spec">Specification Model</label>
+        <InputText id="spec" class="form-control" @bind-Value="Model.SpecificationModel" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="years">Years Built (comma separated)</label>
+        <InputText id="years" class="form-control" @bind-Value="YearsString" />
+        <small class="text-muted">Example: 2012, 2013, 2016</small>
+    </div>
+
+    <button type="submit" class="btn btn-primary me-2">Save</button>
+    <button type="button" class="btn btn-secondary" @onclick="Back">Cancel</button>
+</EditForm>
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+    CreateUpdateCarDto Model = new();
+
+    string YearsString
+    {
+        get => string.Join(", ", Model.YearsBuilt ?? new());
+        set => Model.YearsBuilt = (value ?? "")
+          .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+          .ToList();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id.HasValue)
+        {
+            var dto = await CarAppService.GetAsync(Id.Value);
+            Model = new()
+                {
+                    Mark = dto.Mark,
+                    Model = dto.Model,
+                    SpecificationModel = dto.SpecificationModel,
+                    YearsBuilt = dto.YearsBuilt ?? new()
+                };
+        }
+    }
+
+    async Task Save()
+    {
+        if (Id.HasValue) await CarAppService.UpdateAsync(Id.Value, Model);
+        else await CarAppService.CreateAsync(Model);
+        Back();
+    }
+
+    void Back() => Nav.NavigateTo("/cars");
+}

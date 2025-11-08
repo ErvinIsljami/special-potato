@@ -1,0 +1,12 @@
+﻿@page "/"
+@attribute [Authorize]
+@inject NavigationManager Nav
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Only runs if authorized (because of [Authorize])
+        // Send users to your preferred landing page after login:
+        Nav.NavigateTo("/product-sets", true);
+    }
+}

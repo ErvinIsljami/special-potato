@@ -1,0 +1,162 @@
+﻿@page "/product-sets/edit/{Id:guid?}"
+@attribute [Authorize]
+@inject IProductSetAppService AppService
+@inject ICarAppService CarAppService
+@inject NavigationManager Nav
+
+<h3>@(Id.HasValue ? "Edit Product Set" : "New Product Set")</h3>
+
+<EditForm EditContext="@editContext" @onsubmit:preventDefault="true">
+    <DataAnnotationsValidator />
+
+    <div class="mb-3">
+        <label class="form-label" for="name">Name</label>
+        <InputText id="name" class="form-control" @bind-Value="Model.Name" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="desc">Description</label>
+        <InputText id="desc" class="form-control" @bind-Value="Model.Description" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="size">Size (inches)</label>
+        <InputNumber id="size" class="form-control" @bind-Value="Model.SizeInInches" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="look">Look variant</label>
+        <InputText id="look" class="form-control" @bind-Value="Model.LookVariant" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="color">Color</label>
+        <InputText id="color" class="form-control" @bind-Value="Model.Color" />
+    </div>
+
+    <div class="form-check mb-2">
+        <InputCheckbox id="cd" class="form-check-input" @bind-Value="Model.Cd" />
+        <label class="form-check-label" for="cd">CD</label>
+    </div>
+
+    <div class="form-check mb-4">
+        <InputCheckbox id="display" class="form-check-input" @bind-Value="Model.BuiltInDisplay" />
+        <label class="form-check-label" for="display">Built-in Display</label>
+    </div>
+
+    <!-- Cars search (Mark / Model / Specification Model) -->
+    <div class="mb-2">
+        <label class="form-label" for="carSearch">Search Cars (Mark, Model, Specification Model)</label>
+        <InputText id="carSearch"
+                   class="form-control"
+                   @bind-Value="CarSearch"
+                   placeholder="e.g. Golf, Astra, 1.9 TDI"
+                   @onkeydown="HandleSearchKeyDown" />
+    </div>
+
+    <!-- Show ~15 rows with scroll -->
+    <div class="border rounded p-2" style="max-height:540px; overflow:auto;">
+        <Virtualize Items="FilteredCarsList" ItemSize="36">
+            <ItemContent Context="car">
+                <div class="form-check">
+                    <input class="form-check-input"
+                           type="checkbox"
+                           id="car_@car.Id"
+                           checked="@Model.CompatibleCarIds.Contains(car.Id)"
+                           @onchange="(Microsoft.AspNetCore.Components.ChangeEventArgs e) => ToggleCar(car.Id, e.Value is bool b && b)" />
+                    <label class="form-check-label" for="car_@car.Id">
+                        @car.Mark @car.Model
+                        <small class="text-muted">(@car.SpecificationModel)</small>
+                    </label>
+                </div>
+            </ItemContent>
+        </Virtualize>
+    </div>
+    <small class="text-muted">List shows about 15 cars; scroll to see more. Use the search box to narrow results.</small>
+
+    <div class="mt-4">
+        <!-- type='button' so Enter doesn't submit -->
+        <button type="button" class="btn btn-primary me-2" @onclick="Save">Save</button>
+        <button type="button" class="btn btn-secondary" @onclick="Back">Cancel</button>
+    </div>
+</EditForm>
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+    CreateUpdateProductSetDto Model = new();
+
+    EditContext? editContext;
+
+    List<CarDto> AllCars = new();
+    string CarSearch { get; set; } = string.Empty;
+
+    IEnumerable<CarDto> FilteredCars =>
+        string.IsNullOrWhiteSpace(CarSearch)
+        ? AllCars
+        : AllCars.Where(c =>
+              (c.Mark?.Contains(CarSearch, StringComparison.OrdinalIgnoreCase) ?? false) ||
+              (c.Model?.Contains(CarSearch, StringComparison.OrdinalIgnoreCase) ?? false) ||
+              (c.SpecificationModel?.Contains(CarSearch, StringComparison.OrdinalIgnoreCase) ?? false)
+          );
+
+    // Virtualize prefers a concrete collection
+    List<CarDto> FilteredCarsList => FilteredCars.ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        AllCars = (await CarAppService.GetListAsync(new())).Items.ToList();
+
+        if (Id.HasValue)
+        {
+            var dto = await AppService.GetAsync(Id.Value);
+            Model = new()
+                {
+                    Name = dto.Name,
+                    Description = dto.Description,
+                    SizeInInches = dto.SizeInInches,
+                    LookVariant = dto.LookVariant,
+                    Color = dto.Color,
+                    Cd = dto.Cd,
+                    BuiltInDisplay = dto.BuiltInDisplay,
+                    CompatibleCarIds = dto.CompatibleCarIds ?? new()
+                };
+        }
+
+        editContext = new EditContext(Model);
+    }
+
+    // Block Enter from submitting the form
+    void HandleSearchKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (string.Equals(e.Key, "Enter", StringComparison.OrdinalIgnoreCase))
+        {
+            // do nothing (submit prevented at form level and Save is a button)
+        }
+    }
+
+    void ToggleCar(Guid carId, bool add)
+    {
+        if (add)
+        {
+            if (!Model.CompatibleCarIds.Contains(carId))
+                Model.CompatibleCarIds.Add(carId);
+        }
+        else
+        {
+            Model.CompatibleCarIds.Remove(carId);
+        }
+    }
+
+    async Task Save()
+    {
+        if (editContext is not null && !editContext.Validate())
+            return;
+
+        if (Id.HasValue) await AppService.UpdateAsync(Id.Value, Model);
+        else await AppService.CreateAsync(Model);
+
+        Back();
+    }
+
+    void Back() => Nav.NavigateTo("/product-sets");
+}

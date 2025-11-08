@@ -1,0 +1,59 @@
+﻿@page "/product-sets"
+@using VuDrive.ProductSets
+@attribute [Authorize]
+@inject IProductSetAppService AppService
+@inject NavigationManager Nav
+
+<h3>Product Sets</h3>
+
+<button class="btn btn-primary mb-3" @onclick="Create">New Product Set</button>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Size (in)</th>
+            <th>Look</th>
+            <th>Color</th>
+            <th>CD</th>
+            <th>Built-in Display</th>
+            <th style="width:180px;"></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var x in Items)
+        {
+            <tr>
+                <td>@x.Name</td>
+                <td>@x.SizeInInches</td>
+                <td>@x.LookVariant</td>
+                <td>@x.Color</td>
+                <td>@(x.Cd ? "Yes" : "No")</td>
+                <td>@(x.BuiltInDisplay ? "Yes" : "No")</td>
+                <td>
+                    <button class="btn btn-sm btn-secondary me-2" @onclick="() => Edit(x.Id)">Edit</button>
+                    <button class="btn btn-sm btn-danger" @onclick="() => Delete(x.Id)">Delete</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    List<ProductSetDto> Items = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Items = (await AppService.GetListAsync(new())).Items.ToList();
+    }
+
+    void Create() => Nav.NavigateTo("/product-sets/edit");
+    void Edit(Guid id) => Nav.NavigateTo($"/product-sets/edit/{id}");
+
+    async Task Delete(Guid id)
+    {
+        await AppService.DeleteAsync(id);
+        Items.RemoveAll(i => i.Id == id);
+        StateHasChanged();
+    }
+}
