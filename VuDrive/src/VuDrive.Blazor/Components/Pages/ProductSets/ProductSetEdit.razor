@@ -3,6 +3,7 @@
 @inject IProductSetAppService AppService
 @inject ICarAppService CarAppService
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <h3>@(Id.HasValue ? "Edit Product Set" : "New Product Set")</h3>
 
@@ -50,7 +51,7 @@
     </div>
 
     <!-- Cars: search-first dropdown (no list before search) -->
-    <div class="mb-2">
+    <div class="mb-2" @ref="dropdownContainer">
         <label class="form-label" for="carSearch">Search Cars (Mark or Model)</label>
         <div class="position-relative">
             <input id="carSearch"
@@ -58,12 +59,14 @@
                    placeholder="Start typing e.g. Golf or Alfa…"
                    value="@CarQuery"
                    @oninput="OnSearchInput"
+                   @onfocus="OnSearchFocus"
                    @onkeydown="HandleSearchKeyDown" />
 
             @if (ShowDropdown)
             {
                 <div class="border rounded bg-white shadow-sm position-absolute w-100 mt-1"
-                     style="z-index: 1050; max-height: 540px; overflow:auto;">
+                     style="z-index: 1050; max-height: 540px; overflow:auto;"
+                     @onclick:stopPropagation="true">
                     @if (SearchResults.Count == 0)
                     {
                         <div class="p-2 text-muted">No matches.</div>
@@ -74,11 +77,13 @@
                         {
                             var checkedNow = Model.CompatibleCarIds.Contains(car.Id);
                             <label class="d-flex align-items-start gap-2 p-2 border-bottom"
-                                   style="cursor:pointer;">
+                                   style="cursor:pointer;"
+                                   @onclick:stopPropagation="true">
                                 <input type="checkbox"
                                        class="form-check-input mt-1"
                                        checked="@checkedNow"
-                                       @onchange="(ChangeEventArgs e) => ToggleCar(car.Id, e.Value is bool b && b)" />
+                                       @onchange="(ChangeEventArgs e) => ToggleCar(car.Id, e.Value is bool b && b)"
+                                       @onclick:stopPropagation="true" />
                                 <div>
                                     <div><strong>@car.Mark</strong> @car.Model <small class="text-muted">(@car.SpecificationModel)</small></div>
                                     <div class="text-muted" style="font-size:.9rem;">@string.Join(", ", car.YearsBuilt ?? new())</div>
@@ -86,10 +91,13 @@
                             </label>
                         }
                     }
+                    <div class="p-2 border-top bg-light">
+                        <button type="button" class="btn btn-sm btn-primary" @onclick="CloseDropdown">Done</button>
+                    </div>
                 </div>
             }
         </div>
-        <small class="text-muted">Type at least 2 characters. Results list is scrollable if long.</small>
+        <small class="text-muted">Type at least 2 characters. Press Escape or click Done to close. Results list is scrollable if long.</small>
     </div>
 
     <!-- Show chosen cars as compact badges -->
@@ -129,17 +137,19 @@
     CreateUpdateProductSetDto Model = new();
 
     EditContext? editContext;
+    ElementReference dropdownContainer;
 
     // Search state
     string CarQuery { get; set; } = string.Empty;
     List<CarDto> SearchResults { get; set; } = new();
     System.Threading.CancellationTokenSource? _searchCts;
+    bool _isDropdownOpen = false;
 
     // Selected cars (for badges)
     List<CarDto> SelectedCars { get; set; } = new();
 
-    bool ShowDropdown =>
-        !string.IsNullOrWhiteSpace(CarQuery)
+    bool ShowDropdown => _isDropdownOpen
+        && !string.IsNullOrWhiteSpace(CarQuery)
         && CarQuery.Trim().Length >= 2
         && SearchResults != null;
 
@@ -149,16 +159,16 @@
         {
             var dto = await AppService.GetAsync(Id.Value);
             Model = new()
-            {
-                Name = dto.Name,
-                Description = dto.Description,
-                SizeInInches = dto.SizeInInches,
-                LookVariant = dto.LookVariant,
-                Color = dto.Color,
-                Cd = dto.Cd,
-                BuiltInDisplay = dto.BuiltInDisplay,
-                CompatibleCarIds = dto.CompatibleCarIds ?? new()
-            };
+                {
+                    Name = dto.Name,
+                    Description = dto.Description,
+                    SizeInInches = dto.SizeInInches,
+                    LookVariant = dto.LookVariant,
+                    Color = dto.Color,
+                    Cd = dto.Cd,
+                    BuiltInDisplay = dto.BuiltInDisplay,
+                    CompatibleCarIds = dto.CompatibleCarIds ?? new()
+                };
 
             // Preload minimal info for badges (best-effort)
             await RefreshSelectedCars();
@@ -167,17 +177,46 @@
         editContext = new EditContext(Model);
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("eval", @"
+                document.addEventListener('click', function(e) {
+                    const dropdown = document.querySelector('[style*=""z-index: 1050""]');
+                    const searchInput = document.getElementById('carSearch');
+                    if (dropdown && !dropdown.contains(e.target) && e.target !== searchInput) {
+                        DotNet.invokeMethodAsync('YourAssemblyName', 'CloseDropdownFromJS');
+                    }
+                });
+            ");
+        }
+    }
+
+    void OnSearchFocus()
+    {
+        if (!string.IsNullOrWhiteSpace(CarQuery) && CarQuery.Trim().Length >= 2)
+        {
+            _isDropdownOpen = true;
+        }
+    }
+
     void HandleSearchKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
     {
-        if (string.Equals(e.Key, "Enter", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(e.Key, "Escape", StringComparison.OrdinalIgnoreCase))
         {
-            // Prevent accidental form submit; handled by Save button
+            CloseDropdown();
+        }
+        else if (string.Equals(e.Key, "Enter", StringComparison.OrdinalIgnoreCase))
+        {
+            // Prevent accidental form submit
         }
     }
 
     async Task OnSearchInput(ChangeEventArgs e)
     {
         CarQuery = e.Value?.ToString() ?? string.Empty;
+        _isDropdownOpen = true;
 
         // Debounce ~250ms
         _searchCts?.Cancel();
@@ -208,16 +247,16 @@
         // We need OR (Mark OR Model). The list API applies filters with AND,
         // so call twice and union by Id.
         var byMark = await CarAppService.GetListAsync(new CarsListInput
-        {
-            Mark = term,
-            MaxResultCount = 200
-        });
+            {
+                Mark = term,
+                MaxResultCount = 200
+            });
 
         var byModel = await CarAppService.GetListAsync(new CarsListInput
-        {
-            Model = term,
-            MaxResultCount = 200
-        });
+            {
+                Model = term,
+                MaxResultCount = 200
+            });
 
         SearchResults = byMark.Items
             .Concat(byModel.Items)
@@ -227,6 +266,12 @@
             .ThenBy(x => x.Model)
             .ToList();
 
+        StateHasChanged();
+    }
+
+    void CloseDropdown()
+    {
+        _isDropdownOpen = false;
         StateHasChanged();
     }
 
