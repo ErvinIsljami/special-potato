@@ -1,0 +1,102 @@
+﻿@page "/cars/import"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Forms
+@using System.IO
+@inject ICarAppService CarAppService
+
+<h3>Import Cars (CSV)</h3>
+
+<div class="mb-3">
+    <InputFile OnChange="OnFileSelected" />
+    @if (!string.IsNullOrEmpty(FileName))
+    {
+        <div class="text-muted mt-1">@FileName (@(FileSizeKb) KB)</div>
+    }
+</div>
+
+<button class="btn btn-primary" @onclick="Import" disabled="@(!CanImport)">Import</button>
+
+@if (ImportResult is not null)
+{
+    <div class="alert alert-success mt-3">
+        <div><strong>Imported:</strong> @ImportResult.Inserted</div>
+        <div><strong>Skipped duplicates:</strong> @ImportResult.SkippedDuplicates</div>
+        <div><strong>Skipped invalid:</strong> @ImportResult.SkippedInvalid</div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Error))
+{
+    <div class="alert alert-danger mt-3">@Error</div>
+}
+
+@code {
+    private IBrowserFile? SelectedFile;
+    private byte[]? FileBytes;
+    private string FileName = string.Empty;
+    private long FileSizeKb => SelectedFile is null ? 0 : SelectedFile.Size / 1024;
+
+    // Result DTO from the app service
+    private ImportCarsResultDto? ImportResult;
+    private string? Error;
+
+    private bool CanImport => FileBytes is not null && FileBytes.Length > 0;
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        Error = null;
+        ImportResult = null;
+
+        SelectedFile = e.File;
+        if (SelectedFile is null)
+        {
+            FileName = string.Empty;
+            FileBytes = null;
+            return;
+        }
+
+        FileName = SelectedFile.Name;
+
+        // Adjust max size if needed; 20 MB here.
+        const long max = 20 * 1024 * 1024;
+        try
+        {
+            using var stream = SelectedFile.OpenReadStream(max);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            FileBytes = ms.ToArray();
+        }
+        catch (Exception ex)
+        {
+            Error = $"Failed to read file: {ex.Message}";
+            FileBytes = null;
+        }
+    }
+
+    private async Task Import()
+    {
+        Error = null;
+        ImportResult = null;
+
+        if (!CanImport)
+        {
+            Error = "Please choose a CSV file first.";
+            return;
+        }
+
+        try
+        {
+            var input = new ImportCarsUploadDto
+            {
+                FileName = FileName,
+                Content = FileBytes!
+            };
+
+            ImportResult = await CarAppService.ImportCsvAsync(input);
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+    }
+}

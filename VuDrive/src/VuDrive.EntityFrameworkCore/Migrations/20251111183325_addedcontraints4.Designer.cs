@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Volo.Abp.EntityFrameworkCore;
 using VuDrive.EntityFrameworkCore;
@@ -11,9 +12,11 @@ using VuDrive.EntityFrameworkCore;
 namespace VuDrive.Migrations
 {
     [DbContext(typeof(VuDriveDbContext))]
-    partial class VuDriveDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251111183325_addedcontraints4")]
+    partial class addedcontraints4
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1936,6 +1939,7 @@ namespace VuDrive.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Color")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ConcurrencyStamp")
@@ -1984,6 +1988,7 @@ namespace VuDrive.Migrations
                         .HasColumnName("LastModifierId");
 
                     b.Property<string>("LookVariant")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")

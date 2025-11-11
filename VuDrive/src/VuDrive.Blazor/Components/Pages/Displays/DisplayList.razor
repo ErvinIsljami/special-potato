@@ -1,47 +1,125 @@
 ﻿@page "/displays"
-@inject VuDrive.Displays.IDisplayAppService AppService
+@attribute [Authorize]
+@using VuDrive.Displays
+@inject IDisplayAppService DisplayAppService
 @inject NavigationManager Nav
 
 <h3>Displays</h3>
-<button class="btn btn-primary mb-3" @onclick="@Create">New Display</button>
 
-<table class="table">
+<div class="row g-2 mb-3">
+    <div class="col-md-3">
+        <input class="form-control" placeholder="Search by Name" @bind="filters.Name" />
+    </div>
+    <div class="col-md-3">
+        <input class="form-control" type="number" step="0.1" placeholder="Size (inches)" @bind="filters.SizeInInches" />
+    </div>
+    <div class="col-md-3">
+        <input class="form-control" type="number" placeholder="RAM (GB)" @bind="filters.Ram" />
+    </div>
+    <div class="col-md-3 d-flex gap-2">
+        <select class="form-select" @bind="pageSize">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+        </select>
+        <button class="btn btn-primary" @onclick="Search">Search</button>
+        <button class="btn btn-outline-secondary" @onclick="Reset">Reset</button>
+    </div>
+</div>
+
+<div class="mb-3">
+    <button class="btn btn-primary" @onclick="Create">New Display</button>
+</div>
+
+<table class="table table-sm table-hover align-middle">
     <thead>
         <tr>
             <th>Name</th>
-            <th>Size (in)</th>
-            <th>Android</th>
+            <th>Size (")</th>
             <th>RAM</th>
             <th>Memory</th>
+            <th>Android</th>
             <th>CPU</th>
-            <th></th>
+            <th style="width:180px;"></th>
         </tr>
     </thead>
     <tbody>
-        @foreach (var x in Items)
+        @if (items is null)
         {
-            <tr>
-                <td>@x.Name</td>
-                <td>@x.SizeInInches</td>
-                <td>@x.AndroidVersion</td>
-                <td>@x.Ram</td>
-                <td>@x.Memory</td>
-                <td>@x.Cpu</td>
-                <td>
-                    <button class="btn btn-sm btn-secondary me-1" @onclick="@(() => Edit(x.Id))">Edit</button>
-                    <button class="btn btn-sm btn-danger" @onclick="@(() => Delete(x.Id))">Delete</button>
-                </td>
-            </tr>
+            <tr><td colspan="7" class="text-muted">Loading…</td></tr>
+        }
+        else if (items.Count == 0)
+        {
+            <tr><td colspan="7" class="text-muted">No results.</td></tr>
+        }
+        else
+        {
+            @foreach (var d in items)
+            {
+                <tr>
+                    <td>@d.Name</td>
+                    <td>@d.SizeInInches</td>
+                    <td>@d.Ram</td>
+                    <td>@(d.Memory?.ToString() ?? "—")</td>
+                    <td>@d.AndroidVersion</td>
+                    <td>@d.Cpu</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-secondary me-2" @onclick="() => Edit(d.Id)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => Delete(d.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
         }
     </tbody>
 </table>
 
-@code {
-    List<VuDrive.Displays.DisplayDto> Items = new();
+@if (totalCount > 0)
+{
+    <div class="d-flex justify-content-between align-items-center">
+        <div>Showing @((pageIndex * pageSize) + 1) – @Math.Min((pageIndex + 1) * pageSize, totalCount) of @totalCount</div>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item @(pageIndex == 0 ? "disabled" : null)">
+                    <button class="page-link" @onclick="Prev">«</button>
+                </li>
+                @foreach (var p in PageNumbers())
+                {
+                    <li class="page-item @(p == pageIndex ? "active" : null)">
+                        <button class="page-link" @onclick="(() => Go(p))">@((p + 1))</button>
+                    </li>
+                }
+                <li class="page-item @(((pageIndex + 1) * pageSize >= totalCount) ? "disabled" : null)">
+                    <button class="page-link" @onclick="Next">»</button>
+                </li>
+            </ul>
+        </nav>
+    </div>
+}
 
-    protected override async Task OnInitializedAsync()
+@code {
+    DisplaysListInput filters = new();
+    List<DisplayDto>? items;
+    int totalCount;
+
+    int pageIndex = 0;
+    int pageSize = 50;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    async Task Load()
     {
-        Items = (await AppService.GetListAsync(new())).Items.ToList();
+        var input = new DisplaysListInput
+        {
+            Name = filters.Name,
+            SizeInInches = filters.SizeInInches,
+            Ram = filters.Ram,
+            MaxResultCount = pageSize,
+            SkipCount = pageIndex * pageSize
+        };
+
+        var res = await DisplayAppService.GetListAsync(input);
+        items = res.Items.ToList();
+        totalCount = (int)res.TotalCount;
     }
 
     void Create() => Nav.NavigateTo("/displays/edit");
@@ -49,8 +127,23 @@
 
     async Task Delete(Guid id)
     {
-        await AppService.DeleteAsync(id);
-        Items.RemoveAll(i => i.Id == id);
-        StateHasChanged();
+        await DisplayAppService.DeleteAsync(id);
+        await Load(); // keep pagination & totals consistent
+    }
+
+    async Task Search() { pageIndex = 0; await Load(); }
+    async Task Reset() { filters = new(); pageIndex = 0; await Load(); }
+    async Task Prev() { if (pageIndex > 0) { pageIndex--; await Load(); } }
+    async Task Next() { if ((pageIndex + 1) * pageSize < totalCount) { pageIndex++; await Load(); } }
+    async Task Go(int p) { pageIndex = p; await Load(); }
+
+    IEnumerable<int> PageNumbers()
+    {
+        var pages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)pageSize));
+        const int window = 7;
+        var start = Math.Max(0, pageIndex - window / 2);
+        var end = Math.Min(pages - 1, start + window - 1);
+        start = Math.Max(0, Math.Min(start, Math.Max(0, pages - window)));
+        for (int i = start; i <= end; i++) yield return i;
     }
 }

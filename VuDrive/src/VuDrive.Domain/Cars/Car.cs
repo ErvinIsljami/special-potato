@@ -7,9 +7,9 @@ namespace VuDrive.Cars;
 
 public class Car : FullAuditedAggregateRoot<Guid>
 {
-    public string Mark { get; set; } = default!;
-    public string Model { get; set; } = default!;
-    public string SpecificationModel { get; set; } = default!;
+    public string Mark { get; set; } = default!;                    //required
+    public string Model { get; set; } = default!;                   //required
+    public string? SpecificationModel { get; set; }
 
     // List of specific years (e.g. "2012", "2013")
     public List<string> YearsBuilt { get; set; } = new();

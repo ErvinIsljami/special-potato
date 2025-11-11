@@ -88,6 +88,12 @@ public class VuDriveDbContext :
         {
             b.ToTable(VuDriveConsts.DbTablePrefix + "Displays", VuDriveConsts.DbSchema);
             b.ConfigureByConvention();
+            b.Property(x => x.Name).IsRequired();
+            b.Property(x => x.SizeInInches).IsRequired();
+            b.Property(x => x.Ram).IsRequired();
+            b.Property(x => x.AndroidVersion).IsRequired(false);
+            b.Property(x => x.Cpu).IsRequired(false);
+            b.Property(x => x.Memory).IsRequired(false);
         });
 
         builder.Entity<VuDrive.Cars.Car>(b =>
@@ -105,13 +111,22 @@ public class VuDriveDbContext :
                     .ToList()
              )
              .HasMaxLength(512);
+
+            b.Property(x => x.Mark).IsRequired();
+            b.Property(x => x.Model).IsRequired();
+
+            b.Property(x => x.SpecificationModel).IsRequired(false);
         });
 
         builder.Entity<VuDrive.ProductSets.ProductSet>(b =>
         {
             b.ToTable(VuDriveConsts.DbTablePrefix + "ProductSets", VuDriveConsts.DbSchema);
             b.ConfigureByConvention();
-
+            b.Property(x => x.Name).IsRequired();
+            b.Property(x => x.SizeInInches).IsRequired();
+            b.Property(x => x.Description).IsRequired(false);
+            b.Property(x => x.LookVariant).IsRequired(false);
+            b.Property(x => x.Color).IsRequired(false);
         });
 
         builder.Entity<VuDrive.ProductSets.ProductSetCar>(b =>

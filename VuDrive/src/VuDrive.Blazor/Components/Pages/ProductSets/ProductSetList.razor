@@ -6,12 +6,34 @@
 
 <h3>Product Sets</h3>
 
+<div class="row g-2 mb-3">
+    <div class="col-md-5">
+        <input class="form-control" placeholder="Search by Name" @bind="Filters.Name" />
+    </div>
+    <div class="col-md-3">
+        <input class="form-control" type="number" step="0.1" placeholder="Size (inches)" @bind="Filters.SizeInInches" />
+    </div>
+    <div class="col-md-4 d-flex gap-2">
+        <select class="form-select w-auto" @bind="PageSize">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+        </select>
+        <button class="btn btn-primary" @onclick="Search">Search</button>
+        <button class="btn btn-outline-secondary" @onclick="Reset">Reset</button>
+    </div>
+</div>
+
 <button class="btn btn-primary mb-3" @onclick="Create">New Product Set</button>
 
 <table class="table">
     <thead>
         <tr>
-            <th>Name</th>
+            <th>
+                <button type="button" class="btn btn-link p-0" @onclick="ToggleSort">
+                    Name @SortGlyph()
+                </button>
+            </th>
             <th>Size (in)</th>
             <th>Look</th>
             <th>Color</th>
@@ -21,30 +43,153 @@
         </tr>
     </thead>
     <tbody>
-        @foreach (var x in Items)
+        @if (Items is null)
         {
-            <tr>
-                <td>@x.Name</td>
-                <td>@x.SizeInInches</td>
-                <td>@x.LookVariant</td>
-                <td>@x.Color</td>
-                <td>@(x.Cd ? "Yes" : "No")</td>
-                <td>@(x.BuiltInDisplay ? "Yes" : "No")</td>
-                <td>
-                    <button class="btn btn-sm btn-secondary me-2" @onclick="() => Edit(x.Id)">Edit</button>
-                    <button class="btn btn-sm btn-danger" @onclick="() => Delete(x.Id)">Delete</button>
-                </td>
-            </tr>
+            <tr><td colspan="7" class="text-muted">Loading…</td></tr>
+        }
+        else if (Items.Count == 0)
+        {
+            <tr><td colspan="7" class="text-muted">No results.</td></tr>
+        }
+        else
+        {
+            @foreach (var x in Items)
+            {
+                <tr>
+                    <td>@x.Name</td>
+                    <td>@x.SizeInInches</td>
+                    <td>@x.LookVariant</td>
+                    <td>@x.Color</td>
+                    <td>@(x.Cd ? "Yes" : "No")</td>
+                    <td>@(x.BuiltInDisplay ? "Yes" : "No")</td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary me-2" @onclick="() => Edit(x.Id)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => Delete(x.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
         }
     </tbody>
 </table>
 
+@if (TotalCount > 0)
+{
+    <div class="d-flex justify-content-between align-items-center">
+        <div>Showing @((PageIndex * PageSize) + 1) – @Math.Min((PageIndex + 1) * PageSize, TotalCount) of @TotalCount</div>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item @(PageIndex == 0 ? "disabled" : null)">
+                    <button class="page-link" @onclick="Prev">«</button>
+                </li>
+                @foreach (var p in PageNumbers())
+                {
+                    <li class="page-item @(p == PageIndex ? "active" : null)">
+                        <button class="page-link" @onclick="(() => Go(p))">@((p + 1))</button>
+                    </li>
+                }
+                <li class="page-item @(((PageIndex + 1) * PageSize >= TotalCount) ? "disabled" : null)">
+                    <button class="page-link" @onclick="Next">»</button>
+                </li>
+            </ul>
+        </nav>
+    </div>
+}
+
 @code {
-    List<ProductSetDto> Items = new();
+    // Data + paging state
+    List<ProductSetDto>? Items;
+    int TotalCount;
+    int PageIndex = 0;
+    int PageSize = 50;
+
+    // Sorting: "Name" or "Name DESC" (server interprets)
+    string Sorting = "Name";
+
+    // Filters sent to server (Name contains, Size exact)
+    ProductSetsListInput Filters = new();
 
     protected override async Task OnInitializedAsync()
     {
-        Items = (await AppService.GetListAsync(new())).Items.ToList();
+        await Load();
+    }
+
+    async Task Load()
+    {
+        var input = new ProductSetsListInput
+        {
+            Name = Filters.Name,
+            SizeInInches = Filters.SizeInInches,
+            SkipCount = PageIndex * PageSize,
+            MaxResultCount = PageSize,
+            Sorting = Sorting
+        };
+
+        var res = await AppService.GetListAsync(input);
+        Items = res.Items.ToList();
+        TotalCount = (int)res.TotalCount;
+    }
+
+    async Task Search()
+    {
+        PageIndex = 0;
+        await Load();
+    }
+
+    async Task Reset()
+    {
+        Filters = new();
+        PageIndex = 0;
+        Sorting = "Name";
+        await Load();
+    }
+
+    async Task Prev()
+    {
+        if (PageIndex > 0)
+        {
+            PageIndex--;
+            await Load();
+        }
+    }
+
+    async Task Next()
+    {
+        if ((PageIndex + 1) * PageSize < TotalCount)
+        {
+            PageIndex++;
+            await Load();
+        }
+    }
+
+    async Task Go(int p)
+    {
+        PageIndex = p;
+        await Load();
+    }
+
+    IEnumerable<int> PageNumbers()
+    {
+        var pages = Math.Max(1, (int)Math.Ceiling(TotalCount / (double)PageSize));
+        const int window = 7;
+        var start = Math.Max(0, PageIndex - window / 2);
+        var end = Math.Min(pages - 1, start + window - 1);
+        start = Math.Max(0, Math.Min(start, Math.Max(0, pages - window)));
+        for (int i = start; i <= end; i++) yield return i;
+    }
+
+    async Task ToggleSort()
+    {
+        Sorting = Sorting.EndsWith("DESC", StringComparison.OrdinalIgnoreCase) ? "Name" : "Name DESC";
+        PageIndex = 0;
+        await Load();
+    }
+
+    MarkupString SortGlyph()
+    {
+        if (string.IsNullOrWhiteSpace(Sorting)) return new("");
+        var desc = Sorting.EndsWith("DESC", StringComparison.OrdinalIgnoreCase);
+        var glyph = desc ? "▼" : "▲";
+        return new($"<span class=\"ms-1 text-muted\">{glyph}</span>");
     }
 
     void Create() => Nav.NavigateTo("/product-sets/edit");
@@ -53,7 +198,7 @@
     async Task Delete(Guid id)
     {
         await AppService.DeleteAsync(id);
-        Items.RemoveAll(i => i.Id == id);
-        StateHasChanged();
+        // Reload the current page to keep counts correct
+        await Load();
     }
 }

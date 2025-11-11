@@ -1,16 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using Volo.Abp.Application.Dtos;
 
 namespace VuDrive.ProductSets;
 
 public class ProductSetDto : AuditedEntityDto<Guid>
 {
-    public string Name { get; set; } = default!;
+    public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public decimal SizeInInches { get; set; }
-    public string LookVariant { get; set; } = default!;
-    public string Color { get; set; } = default!;
+    public string? LookVariant { get; set; }
+    public string? Color { get; set; }
     public bool Cd { get; set; }
     public bool BuiltInDisplay { get; set; }
 
@@ -20,14 +21,31 @@ public class ProductSetDto : AuditedEntityDto<Guid>
 
 public class CreateUpdateProductSetDto
 {
-    public string Name { get; set; } = default!;
-    public string? Description { get; set; }
+    [Required, MaxLength(128)]
+    [RegularExpression(@".*\S.*", ErrorMessage = "Name cannot be empty or whitespace.")]
+    public string Name { get; set; } = string.Empty;
+
+    [Range(0.1, 200, ErrorMessage = "Size (inches) must be greater than 0.")]
     public decimal SizeInInches { get; set; }
-    public string LookVariant { get; set; } = default!;
-    public string Color { get; set; } = default!;
+
+    [MaxLength(2048)]
+    public string? Description { get; set; }
+
+    [MaxLength(64)]
+    public string? LookVariant { get; set; }
+
+    [MaxLength(32)]
+    public string? Color { get; set; }
+
     public bool Cd { get; set; }
     public bool BuiltInDisplay { get; set; }
 
     // IDs of selected Cars
     public List<Guid> CompatibleCarIds { get; set; } = new();
+}
+
+public class ProductSetsListInput : PagedAndSortedResultRequestDto
+{
+    public string? Name { get; set; }             // contains (case-insensitive)
+    public decimal? SizeInInches { get; set; }    // exact
 }

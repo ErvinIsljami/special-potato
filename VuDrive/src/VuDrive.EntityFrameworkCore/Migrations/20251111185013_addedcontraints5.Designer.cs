@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Volo.Abp.EntityFrameworkCore;
 using VuDrive.EntityFrameworkCore;
@@ -11,9 +12,11 @@ using VuDrive.EntityFrameworkCore;
 namespace VuDrive.Migrations
 {
     [DbContext(typeof(VuDriveDbContext))]
-    partial class VuDriveDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251111185013_addedcontraints5")]
+    partial class addedcontraints5
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

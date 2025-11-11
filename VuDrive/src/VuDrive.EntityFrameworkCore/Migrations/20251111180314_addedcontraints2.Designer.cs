@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Volo.Abp.EntityFrameworkCore;
 using VuDrive.EntityFrameworkCore;
@@ -11,9 +12,11 @@ using VuDrive.EntityFrameworkCore;
 namespace VuDrive.Migrations
 {
     [DbContext(typeof(VuDriveDbContext))]
-    partial class VuDriveDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251111180314_addedcontraints2")]
+    partial class addedcontraints2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1859,6 +1862,7 @@ namespace VuDrive.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("AndroidVersion")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ConcurrencyStamp")
@@ -1869,6 +1873,7 @@ namespace VuDrive.Migrations
                         .HasColumnName("ConcurrencyStamp");
 
                     b.Property<string>("Cpu")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreationTime")
@@ -1906,7 +1911,7 @@ namespace VuDrive.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("LastModifierId");
 
-                    b.Property<int?>("Memory")
+                    b.Property<int>("Memory")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
@@ -1936,6 +1941,7 @@ namespace VuDrive.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Color")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ConcurrencyStamp")
@@ -1984,6 +1990,7 @@ namespace VuDrive.Migrations
                         .HasColumnName("LastModifierId");
 
                     b.Property<string>("LookVariant")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Name")

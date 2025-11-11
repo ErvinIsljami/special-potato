@@ -1,75 +1,145 @@
 ﻿@page "/displays/edit/{Id:guid?}"
-@using VuDrive.Displays
 @attribute [Authorize]
-@inject IDisplayAppService AppService
+@using System.ComponentModel.DataAnnotations
+@using VuDrive.Displays
+@inject IDisplayAppService DisplayAppService
 @inject NavigationManager Nav
 
 <h3>@(Id.HasValue ? "Edit Display" : "New Display")</h3>
 
-<EditForm Model="@Model" OnValidSubmit="Save">
+<EditForm EditContext="@EditCtx" OnValidSubmit="Save">
     <DataAnnotationsValidator />
 
     <div class="mb-3">
-        <label class="form-label" for="dname">Name</label>
-        <InputText id="dname" class="form-control" @bind-Value="Model.Name" />
+        <label class="form-label" for="name">Name <span class="text-danger">*</span></label>
+        <InputText id="name" class="form-control" @bind-Value="Form.Name" maxlength="128" />
+        <ValidationMessage For="() => Form.Name" />
     </div>
 
     <div class="mb-3">
-        <label class="form-label" for="dsize">Size (inches)</label>
-        <InputNumber id="dsize" class="form-control" @bind-Value="Model.SizeInInches" />
+        <label class="form-label" for="size">Size (inches) <span class="text-danger">*</span></label>
+        <InputNumber id="size" class="form-control" @bind-Value="Form.SizeInInches" />
+        <ValidationMessage For="() => Form.SizeInInches" />
     </div>
 
     <div class="mb-3">
-        <label class="form-label" for="dandroid">Android version</label>
-        <InputText id="dandroid" class="form-control" @bind-Value="Model.AndroidVersion" />
+        <label class="form-label" for="ram">RAM (GB) <span class="text-danger">*</span></label>
+        <InputNumber id="ram" class="form-control" @bind-Value="Form.Ram" />
+        <ValidationMessage For="() => Form.Ram" />
     </div>
 
     <div class="mb-3">
-        <label class="form-label" for="dram">RAM (GB)</label>
-        <InputNumber id="dram" class="form-control" @bind-Value="Model.Ram" />
+        <label class="form-label" for="memory">Memory (GB)</label>
+        <InputNumber id="memory" class="form-control" @bind-Value="Form.Memory" />
+        <ValidationMessage For="() => Form.Memory" />
     </div>
 
     <div class="mb-3">
-        <label class="form-label" for="dmem">Memory (GB)</label>
-        <InputNumber id="dmem" class="form-control" @bind-Value="Model.Memory" />
+        <label class="form-label" for="android">Android Version (optional)</label>
+        <InputText id="android" class="form-control" @bind-Value="Form.AndroidVersion" maxlength="32" />
+        <ValidationMessage For="() => Form.AndroidVersion" />
     </div>
 
-    <div class="mb-4">
-        <label class="form-label" for="dcpu">CPU</label>
-        <InputText id="dcpu" class="form-control" @bind-Value="Model.Cpu" />
+    <div class="mb-3">
+        <label class="form-label" for="cpu">CPU (optional)</label>
+        <InputText id="cpu" class="form-control" @bind-Value="Form.Cpu" maxlength="128" />
+        <ValidationMessage For="() => Form.Cpu" />
     </div>
 
-    <button type="submit" class="btn btn-primary me-2">Save</button>
+    <button type="submit" class="btn btn-primary me-2" disabled="@(!IsValid)">Save</button>
     <button type="button" class="btn btn-secondary" @onclick="Back">Cancel</button>
+
+    <div class="mt-3">
+        <Microsoft.AspNetCore.Components.Forms.ValidationSummary />
+    </div>
+
 </EditForm>
 
 @code {
     [Parameter] public Guid? Id { get; set; }
-    CreateUpdateDisplayDto Model = new();
+
+    // Local form model with strong validation (no whitespace-only for Name)
+    public class DisplayFormModel
+    {
+        [Required, MaxLength(128)]
+        [RegularExpression(@".*\S.*", ErrorMessage = "Name cannot be empty or whitespace.")]
+        public string Name { get; set; } = string.Empty;
+
+        [Range(0.1, 200, ErrorMessage = "Size (inches) must be greater than 0.")]
+        public decimal SizeInInches { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "RAM must be at least 1 GB.")]
+        public int Ram { get; set; }
+
+        [MaxLength(32)]
+        public string? AndroidVersion { get; set; }
+
+        [Range(0, int.MaxValue)]
+        public int? Memory { get; set; }
+
+        [MaxLength(128)]
+        public string? Cpu { get; set; }
+    }
+
+    private DisplayFormModel Form = new();
+    private EditContext? EditCtx;
+    private bool IsValid;
 
     protected override async Task OnInitializedAsync()
     {
         if (Id.HasValue)
         {
-            var dto = await AppService.GetAsync(Id.Value);
-            Model = new()
-                {
-                    Name = dto.Name,
-                    SizeInInches = dto.SizeInInches,
-                    AndroidVersion = dto.AndroidVersion,
-                    Ram = dto.Ram,
-                    Memory = dto.Memory,
-                    Cpu = dto.Cpu
-                };
+            var dto = await DisplayAppService.GetAsync(Id.Value);
+            Form = new DisplayFormModel
+            {
+                Name = dto.Name ?? string.Empty,
+                SizeInInches = dto.SizeInInches,
+                AndroidVersion = string.IsNullOrWhiteSpace(dto.AndroidVersion) ? null : dto.AndroidVersion,
+                Ram = dto.Ram,
+                Memory = dto.Memory,
+                Cpu = string.IsNullOrWhiteSpace(dto.Cpu) ? null : dto.Cpu
+            };
         }
+
+        EditCtx = new EditContext(Form);
+        IsValid = EditCtx.Validate();
+
+        EditCtx.OnFieldChanged += (_, __) =>
+        {
+            IsValid = EditCtx!.Validate();
+            StateHasChanged();
+        };
     }
 
     async Task Save()
     {
-        if (Id.HasValue) await AppService.UpdateAsync(Id.Value, Model);
-        else await AppService.CreateAsync(Model);
+        Normalize(Form);
+
+        var input = new CreateUpdateDisplayDto
+        {
+            Name = Form.Name,
+            SizeInInches = Form.SizeInInches,
+            Ram = Form.Ram,
+            Memory = Form.Memory,
+            AndroidVersion = string.IsNullOrWhiteSpace(Form.AndroidVersion) ? null : Form.AndroidVersion,
+            Cpu = string.IsNullOrWhiteSpace(Form.Cpu) ? null : Form.Cpu
+        };
+
+        if (Id.HasValue)
+            await DisplayAppService.UpdateAsync(Id.Value, input);
+        else
+            await DisplayAppService.CreateAsync(input);
+
         Back();
     }
 
     void Back() => Nav.NavigateTo("/displays");
+
+    static void Normalize(DisplayFormModel f)
+    {
+        f.Name = (f.Name ?? string.Empty).Trim();
+        f.AndroidVersion = string.IsNullOrWhiteSpace(f.AndroidVersion) ? null : f.AndroidVersion.Trim();
+        f.Cpu = string.IsNullOrWhiteSpace(f.Cpu) ? null : f.Cpu.Trim();
+        // numeric fields already bound/validated
+    }
 }

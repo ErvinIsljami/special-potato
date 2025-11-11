@@ -10,28 +10,33 @@
     <DataAnnotationsValidator />
 
     <div class="mb-3">
-        <label class="form-label" for="name">Name</label>
-        <InputText id="name" class="form-control" @bind-Value="Model.Name" />
+        <label class="form-label" for="name">Name <span class="text-danger">*</span></label>
+        <InputText id="name" class="form-control" @bind-Value="Model.Name" maxlength="128" />
+        <ValidationMessage For="() => Model.Name" />
     </div>
 
     <div class="mb-3">
         <label class="form-label" for="desc">Description</label>
-        <InputText id="desc" class="form-control" @bind-Value="Model.Description" />
+        <InputText id="desc" class="form-control" @bind-Value="Model.Description" maxlength="2048" />
+        <ValidationMessage For="() => Model.Description" />
     </div>
 
     <div class="mb-3">
-        <label class="form-label" for="size">Size (inches)</label>
-        <InputNumber id="size" class="form-control" @bind-Value="Model.SizeInInches" />
+        <label class="form-label" for="size">Size (inches) <span class="text-danger">*</span></label>
+        <InputNumber id="size" class="form-control" TValue="decimal" @bind-Value="Model.SizeInInches" />
+        <ValidationMessage For="() => Model.SizeInInches" />
     </div>
 
     <div class="mb-3">
         <label class="form-label" for="look">Look variant</label>
-        <InputText id="look" class="form-control" @bind-Value="Model.LookVariant" />
+        <InputText id="look" class="form-control" @bind-Value="Model.LookVariant" maxlength="64" />
+        <ValidationMessage For="() => Model.LookVariant" />
     </div>
 
     <div class="mb-3">
         <label class="form-label" for="color">Color</label>
-        <InputText id="color" class="form-control" @bind-Value="Model.Color" />
+        <InputText id="color" class="form-control" @bind-Value="Model.Color" maxlength="32" />
+        <ValidationMessage For="() => Model.Color" />
     </div>
 
     <div class="form-check mb-2">
@@ -44,41 +49,79 @@
         <label class="form-check-label" for="display">Built-in Display</label>
     </div>
 
-    <!-- Cars search (Mark / Model / Specification Model) -->
+    <!-- Cars: search-first dropdown (no list before search) -->
     <div class="mb-2">
-        <label class="form-label" for="carSearch">Search Cars (Mark, Model, Specification Model)</label>
-        <InputText id="carSearch"
+        <label class="form-label" for="carSearch">Search Cars (Mark or Model)</label>
+        <div class="position-relative">
+            <input id="carSearch"
                    class="form-control"
-                   @bind-Value="CarSearch"
-                   placeholder="e.g. Golf, Astra, 1.9 TDI"
+                   placeholder="Start typing e.g. Golf or Alfa…"
+                   value="@CarQuery"
+                   @oninput="OnSearchInput"
                    @onkeydown="HandleSearchKeyDown" />
+
+            @if (ShowDropdown)
+            {
+                <div class="border rounded bg-white shadow-sm position-absolute w-100 mt-1"
+                     style="z-index: 1050; max-height: 540px; overflow:auto;">
+                    @if (SearchResults.Count == 0)
+                    {
+                        <div class="p-2 text-muted">No matches.</div>
+                    }
+                    else
+                    {
+                        @foreach (var car in SearchResults)
+                        {
+                            var checkedNow = Model.CompatibleCarIds.Contains(car.Id);
+                            <label class="d-flex align-items-start gap-2 p-2 border-bottom"
+                                   style="cursor:pointer;">
+                                <input type="checkbox"
+                                       class="form-check-input mt-1"
+                                       checked="@checkedNow"
+                                       @onchange="(ChangeEventArgs e) => ToggleCar(car.Id, e.Value is bool b && b)" />
+                                <div>
+                                    <div><strong>@car.Mark</strong> @car.Model <small class="text-muted">(@car.SpecificationModel)</small></div>
+                                    <div class="text-muted" style="font-size:.9rem;">@string.Join(", ", car.YearsBuilt ?? new())</div>
+                                </div>
+                            </label>
+                        }
+                    }
+                </div>
+            }
+        </div>
+        <small class="text-muted">Type at least 2 characters. Results list is scrollable if long.</small>
     </div>
 
-    <!-- Show ~15 rows with scroll -->
-    <div class="border rounded p-2" style="max-height:540px; overflow:auto;">
-        <Virtualize Items="FilteredCarsList" ItemSize="36">
-            <ItemContent Context="car">
-                <div class="form-check">
-                    <input class="form-check-input"
-                           type="checkbox"
-                           id="car_@car.Id"
-                           checked="@Model.CompatibleCarIds.Contains(car.Id)"
-                           @onchange="(Microsoft.AspNetCore.Components.ChangeEventArgs e) => ToggleCar(car.Id, e.Value is bool b && b)" />
-                    <label class="form-check-label" for="car_@car.Id">
+    <!-- Show chosen cars as compact badges -->
+    @if (Model.CompatibleCarIds?.Count > 0 && SelectedCars.Any())
+    {
+        <div class="mb-3">
+            <div class="d-flex flex-wrap gap-2">
+                @foreach (var car in SelectedCars)
+                {
+                    <span class="badge text-bg-light border">
                         @car.Mark @car.Model
-                        <small class="text-muted">(@car.SpecificationModel)</small>
-                    </label>
-                </div>
-            </ItemContent>
-        </Virtualize>
-    </div>
-    <small class="text-muted">List shows about 15 cars; scroll to see more. Use the search box to narrow results.</small>
+                        <button type="button"
+                                class="btn-close btn-close-white ms-2"
+                                style="filter: invert(1); opacity:.6;"
+                                aria-label="Remove"
+                                @onclick="() => ToggleCar(car.Id, false)">
+                        </button>
+                    </span>
+                }
+            </div>
+        </div>
+    }
 
     <div class="mt-4">
-        <!-- type='button' so Enter doesn't submit -->
         <button type="button" class="btn btn-primary me-2" @onclick="Save">Save</button>
         <button type="button" class="btn btn-secondary" @onclick="Back">Cancel</button>
     </div>
+
+    <div class="mt-3">
+        <Microsoft.AspNetCore.Components.Forms.ValidationSummary />
+    </div>
+
 </EditForm>
 
 @code {
@@ -87,51 +130,104 @@
 
     EditContext? editContext;
 
-    List<CarDto> AllCars = new();
-    string CarSearch { get; set; } = string.Empty;
+    // Search state
+    string CarQuery { get; set; } = string.Empty;
+    List<CarDto> SearchResults { get; set; } = new();
+    System.Threading.CancellationTokenSource? _searchCts;
 
-    IEnumerable<CarDto> FilteredCars =>
-        string.IsNullOrWhiteSpace(CarSearch)
-        ? AllCars
-        : AllCars.Where(c =>
-              (c.Mark?.Contains(CarSearch, StringComparison.OrdinalIgnoreCase) ?? false) ||
-              (c.Model?.Contains(CarSearch, StringComparison.OrdinalIgnoreCase) ?? false) ||
-              (c.SpecificationModel?.Contains(CarSearch, StringComparison.OrdinalIgnoreCase) ?? false)
-          );
+    // Selected cars (for badges)
+    List<CarDto> SelectedCars { get; set; } = new();
 
-    // Virtualize prefers a concrete collection
-    List<CarDto> FilteredCarsList => FilteredCars.ToList();
+    bool ShowDropdown =>
+        !string.IsNullOrWhiteSpace(CarQuery)
+        && CarQuery.Trim().Length >= 2
+        && SearchResults != null;
 
     protected override async Task OnInitializedAsync()
     {
-        AllCars = (await CarAppService.GetListAsync(new())).Items.ToList();
-
         if (Id.HasValue)
         {
             var dto = await AppService.GetAsync(Id.Value);
             Model = new()
-                {
-                    Name = dto.Name,
-                    Description = dto.Description,
-                    SizeInInches = dto.SizeInInches,
-                    LookVariant = dto.LookVariant,
-                    Color = dto.Color,
-                    Cd = dto.Cd,
-                    BuiltInDisplay = dto.BuiltInDisplay,
-                    CompatibleCarIds = dto.CompatibleCarIds ?? new()
-                };
+            {
+                Name = dto.Name,
+                Description = dto.Description,
+                SizeInInches = dto.SizeInInches,
+                LookVariant = dto.LookVariant,
+                Color = dto.Color,
+                Cd = dto.Cd,
+                BuiltInDisplay = dto.BuiltInDisplay,
+                CompatibleCarIds = dto.CompatibleCarIds ?? new()
+            };
+
+            // Preload minimal info for badges (best-effort)
+            await RefreshSelectedCars();
         }
 
         editContext = new EditContext(Model);
     }
 
-    // Block Enter from submitting the form
     void HandleSearchKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
     {
         if (string.Equals(e.Key, "Enter", StringComparison.OrdinalIgnoreCase))
         {
-            // do nothing (submit prevented at form level and Save is a button)
+            // Prevent accidental form submit; handled by Save button
         }
+    }
+
+    async Task OnSearchInput(ChangeEventArgs e)
+    {
+        CarQuery = e.Value?.ToString() ?? string.Empty;
+
+        // Debounce ~250ms
+        _searchCts?.Cancel();
+        _searchCts = new();
+        try
+        {
+            await Task.Delay(250, _searchCts.Token);
+        }
+        catch (TaskCanceledException)
+        {
+            return;
+        }
+
+        await ExecuteSearch();
+    }
+
+    async Task ExecuteSearch()
+    {
+        SearchResults = new();
+
+        var term = (CarQuery ?? string.Empty).Trim();
+        if (term.Length < 2)
+        {
+            StateHasChanged();
+            return;
+        }
+
+        // We need OR (Mark OR Model). The list API applies filters with AND,
+        // so call twice and union by Id.
+        var byMark = await CarAppService.GetListAsync(new CarsListInput
+        {
+            Mark = term,
+            MaxResultCount = 200
+        });
+
+        var byModel = await CarAppService.GetListAsync(new CarsListInput
+        {
+            Model = term,
+            MaxResultCount = 200
+        });
+
+        SearchResults = byMark.Items
+            .Concat(byModel.Items)
+            .GroupBy(x => x.Id)
+            .Select(g => g.First())
+            .OrderBy(x => x.Mark)
+            .ThenBy(x => x.Model)
+            .ToList();
+
+        StateHasChanged();
     }
 
     void ToggleCar(Guid carId, bool add)
@@ -145,6 +241,52 @@
         {
             Model.CompatibleCarIds.Remove(carId);
         }
+
+        // Keep SelectedCars badges in sync
+        _ = RefreshSelectedCars();
+    }
+
+    async Task RefreshSelectedCars()
+    {
+        if (Model.CompatibleCarIds is null || Model.CompatibleCarIds.Count == 0)
+        {
+            SelectedCars = new();
+            StateHasChanged();
+            return;
+        }
+
+        // Fetch by Ids through the list call (best-effort) or reuse last search result
+        // Here we try to reuse SearchResults first
+        var map = SearchResults.ToDictionary(x => x.Id, x => x);
+        var list = new List<CarDto>();
+
+        foreach (var id in Model.CompatibleCarIds.Distinct())
+        {
+            if (map.TryGetValue(id, out var found))
+            {
+                list.Add(found);
+            }
+            else
+            {
+                // fallback: fetch single item
+                try
+                {
+                    var single = await CarAppService.GetAsync(id);
+                    list.Add(single);
+                }
+                catch
+                {
+                    // ignore if not found/permission, etc.
+                }
+            }
+        }
+
+        SelectedCars = list
+            .OrderBy(x => x.Mark)
+            .ThenBy(x => x.Model)
+            .ToList();
+
+        StateHasChanged();
     }
 
     async Task Save()

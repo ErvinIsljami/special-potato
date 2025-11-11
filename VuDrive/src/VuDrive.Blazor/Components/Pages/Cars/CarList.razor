@@ -1,46 +1,140 @@
 ﻿@page "/cars"
-@using VuDrive.Cars
 @attribute [Authorize]
+@using VuDrive.Cars
+@using Volo.Abp.Application.Dtos
 @inject ICarAppService CarAppService
 @inject NavigationManager Nav
 
 <h3>Cars</h3>
 
-<button class="btn btn-primary mb-3" @onclick="Create">New Car</button>
+<div class="row g-2 mb-3">
+    <div class="col-md-3">
+        <input class="form-control" placeholder="Filter by Mark" @bind="filters.Mark" />
+    </div>
+    <div class="col-md-3">
+        <input class="form-control" placeholder="Filter by Model" @bind="filters.Model" />
+    </div>
+    <div class="col-md-3">
+        <input class="form-control" placeholder="Filter by Specification" @bind="filters.Spec" />
+    </div>
+    <div class="col-md-3 d-flex gap-2">
+        <select class="form-select" @bind="pageSize">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+        </select>
+        <button class="btn btn-primary" @onclick="Search">Search</button>
+        <button class="btn btn-outline-secondary" @onclick="Reset">Reset</button>
+    </div>
+</div>
 
-<table class="table">
+<div class="mb-3">
+    <button class="btn btn-primary" @onclick="Create">New Car</button>
+</div>
+
+<table class="table table-sm table-hover align-middle">
     <thead>
         <tr>
-            <th>Mark</th>
-            <th>Model</th>
-            <th>Specification</th>
+            <th>
+                <button type="button" class="btn btn-link p-0"
+                        @onclick="() => SortBy(nameof(CarDto.Mark))">
+                    Mark @SortGlyph(nameof(CarDto.Mark))
+                </button>
+            </th>
+            <th>
+                <button type="button" class="btn btn-link p-0"
+                        @onclick="() => SortBy(nameof(CarDto.Model))">
+                    Model @SortGlyph(nameof(CarDto.Model))
+                </button>
+            </th>
+            <th>
+                <button type="button" class="btn btn-link p-0"
+                        @onclick="() => SortBy(nameof(CarDto.SpecificationModel))">
+                    Specification @SortGlyph(nameof(CarDto.SpecificationModel))
+                </button>
+            </th>
             <th>Years Built</th>
             <th style="width:180px;"></th>
         </tr>
     </thead>
     <tbody>
-        @foreach (var c in Cars)
+        @if (items is null)
         {
-            <tr>
-                <td>@c.Mark</td>
-                <td>@c.Model</td>
-                <td>@c.SpecificationModel</td>
-                <td>@string.Join(", ", c.YearsBuilt ?? new())</td>
-                <td>
-                    <button class="btn btn-sm btn-secondary me-2" @onclick="() => Edit(c.Id)">Edit</button>
-                    <button class="btn btn-sm btn-danger" @onclick="() => Delete(c.Id)">Delete</button>
-                </td>
-            </tr>
+            <tr><td colspan="5" class="text-muted">Loading…</td></tr>
+        }
+        else if (items.Count == 0)
+        {
+            <tr><td colspan="5" class="text-muted">No results.</td></tr>
+        }
+        else
+        {
+            @foreach (var c in items)
+            {
+                <tr>
+                    <td>@c.Mark</td>
+                    <td>@c.Model</td>
+                    <td>@c.SpecificationModel</td>
+                    <td>@string.Join(", ", c.YearsBuilt ?? new())</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-secondary me-2" @onclick="() => Edit(c.Id)">Edit</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => Delete(c.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
         }
     </tbody>
 </table>
 
-@code {
-    List<CarDto> Cars = new();
+@if (totalCount > 0)
+{
+    <div class="d-flex justify-content-between align-items-center">
+        <div>Showing @((pageIndex * pageSize) + 1) – @Math.Min((pageIndex + 1) * pageSize, totalCount) of @totalCount</div>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item @(pageIndex == 0 ? "disabled" : null)">
+                    <button class="page-link" @onclick="Prev">«</button>
+                </li>
+                @foreach (var p in PageNumbers())
+                {
+                    <li class="page-item @(p == pageIndex ? "active" : null)">
+                        <button class="page-link" @onclick="(() => Go(p))">@((p + 1))</button>
+                    </li>
+                }
+                <li class="page-item @(((pageIndex + 1) * pageSize >= totalCount) ? "disabled" : null)">
+                    <button class="page-link" @onclick="Next">»</button>
+                </li>
+            </ul>
+        </nav>
+    </div>
+}
 
-    protected override async Task OnInitializedAsync()
+@code {
+    CarsListInput filters = new();
+    List<CarDto>? items;
+    int totalCount;
+
+    int pageIndex = 0;
+    int pageSize = 50;
+
+    string? currentSorting;   // "Mark" or "Mark DESC"
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    async Task Load()
     {
-        Cars = (await CarAppService.GetListAsync(new())).Items.ToList();
+        var input = new CarsListInput
+        {
+            Mark = filters.Mark,
+            Model = filters.Model,
+            Spec = filters.Spec,
+            MaxResultCount = pageSize,
+            SkipCount = pageIndex * pageSize,
+            Sorting = string.IsNullOrWhiteSpace(currentSorting) ? "Mark, Model" : currentSorting
+        };
+
+        var res = await CarAppService.GetListAsync(input);
+        items = res.Items.ToList();
+        totalCount = (int)res.TotalCount;
     }
 
     void Create() => Nav.NavigateTo("/cars/edit");
@@ -49,7 +143,44 @@
     async Task Delete(Guid id)
     {
         await CarAppService.DeleteAsync(id);
-        Cars.RemoveAll(x => x.Id == id);
-        StateHasChanged();
+        await Load(); // keep pagination & totals consistent
+    }
+
+    async Task Search() { pageIndex = 0; await Load(); }
+    async Task Reset() { filters = new(); pageIndex = 0; currentSorting = null; await Load(); }
+    async Task Prev() { if (pageIndex > 0) { pageIndex--; await Load(); } }
+    async Task Next() { if ((pageIndex + 1) * pageSize < totalCount) { pageIndex++; await Load(); } }
+    async Task Go(int p) { pageIndex = p; await Load(); }
+
+    IEnumerable<int> PageNumbers()
+    {
+        var pages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)pageSize));
+        const int window = 7;
+        var start = Math.Max(0, pageIndex - window / 2);
+        var end = Math.Min(pages - 1, start + window - 1);
+        start = Math.Max(0, Math.Min(start, Math.Max(0, pages - window)));
+        for (int i = start; i <= end; i++) yield return i;
+    }
+
+    async Task SortBy(string prop)
+    {
+        if (string.Equals(currentSorting?.Split(' ')[0], prop, StringComparison.OrdinalIgnoreCase) &&
+            !currentSorting!.EndsWith("DESC", StringComparison.OrdinalIgnoreCase))
+            currentSorting = $"{prop} DESC";
+        else
+            currentSorting = prop;
+
+        pageIndex = 0;
+        await Load();
+    }
+
+    MarkupString SortGlyph(string prop)
+    {
+        if (string.IsNullOrWhiteSpace(currentSorting)) return new("");
+        var parts = currentSorting.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+        if (!string.Equals(parts[0], prop, StringComparison.OrdinalIgnoreCase)) return new("");
+        var desc = parts.Length > 1 && parts[1].Equals("DESC", StringComparison.OrdinalIgnoreCase);
+        var glyph = desc ? "▼" : "▲";
+        return new($"<span class=\"ms-1 text-muted\">{glyph}</span>");
     }
 }

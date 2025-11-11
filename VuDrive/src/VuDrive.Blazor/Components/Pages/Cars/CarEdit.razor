@@ -1,26 +1,30 @@
 ﻿@page "/cars/edit/{Id:guid?}"
 @attribute [Authorize]
+@using System.ComponentModel.DataAnnotations
 @inject ICarAppService CarAppService
 @inject NavigationManager Nav
 
 <h3>@(Id.HasValue ? "Edit Car" : "New Car")</h3>
 
-<EditForm Model="@Model" OnValidSubmit="Save">
+<EditForm EditContext="@EditCtx" OnValidSubmit="Save">
     <DataAnnotationsValidator />
 
     <div class="mb-3">
-        <label class="form-label" for="mark">Mark</label>
-        <InputText id="mark" class="form-control" @bind-Value="Model.Mark" />
+        <label class="form-label" for="mark">Mark <span class="text-danger">*</span></label>
+        <InputText id="mark" class="form-control" @bind-Value="Form.Mark" maxlength="128" />
+        <ValidationMessage For="() => Form.Mark" />
     </div>
 
     <div class="mb-3">
-        <label class="form-label" for="model">Model</label>
-        <InputText id="model" class="form-control" @bind-Value="Model.Model" />
+        <label class="form-label" for="model">Model <span class="text-danger">*</span></label>
+        <InputText id="model" class="form-control" @bind-Value="Form.Model" maxlength="128" />
+        <ValidationMessage For="() => Form.Model" />
     </div>
 
     <div class="mb-3">
-        <label class="form-label" for="spec">Specification Model</label>
-        <InputText id="spec" class="form-control" @bind-Value="Model.SpecificationModel" />
+        <label class="form-label" for="spec">Specification Model (optional)</label>
+        <InputText id="spec" class="form-control" @bind-Value="Form.SpecificationModel" maxlength="128" />
+        <ValidationMessage For="() => Form.SpecificationModel" />
     </div>
 
     <div class="mb-3">
@@ -29,20 +33,45 @@
         <small class="text-muted">Example: 2012, 2013, 2016</small>
     </div>
 
-    <button type="submit" class="btn btn-primary me-2">Save</button>
+    <button type="submit" class="btn btn-primary me-2" disabled="@(!IsValid)">Save</button>
     <button type="button" class="btn btn-secondary" @onclick="Back">Cancel</button>
+
+    <div class="mt-3">
+        <Microsoft.AspNetCore.Components.Forms.ValidationSummary />
+    </div>
 </EditForm>
 
 @code {
     [Parameter] public Guid? Id { get; set; }
-    CreateUpdateCarDto Model = new();
+
+    // Local form model with strong validation
+    public class CarFormModel
+    {
+        [Required, MaxLength(128)]
+        [RegularExpression(@".*\S.*", ErrorMessage = "Mark cannot be empty or whitespace.")]
+        public string Mark { get; set; } = string.Empty;
+
+        [Required, MaxLength(128)]
+        [RegularExpression(@".*\S.*", ErrorMessage = "Model cannot be empty or whitespace.")]
+        public string Model { get; set; } = string.Empty;
+
+        [MaxLength(128)]
+        public string? SpecificationModel { get; set; } // optional
+
+        public List<string> YearsBuilt { get; set; } = new();
+    }
+
+    private CarFormModel Form = new();
+    private EditContext? EditCtx;
+    private bool IsValid;
 
     string YearsString
     {
-        get => string.Join(", ", Model.YearsBuilt ?? new());
-        set => Model.YearsBuilt = (value ?? "")
-          .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-          .ToList();
+        get => string.Join(", ", Form.YearsBuilt ?? new());
+        set => Form.YearsBuilt = (value ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(y => !string.IsNullOrWhiteSpace(y))
+            .ToList();
     }
 
     protected override async Task OnInitializedAsync()
@@ -50,22 +79,60 @@
         if (Id.HasValue)
         {
             var dto = await CarAppService.GetAsync(Id.Value);
-            Model = new()
-                {
-                    Mark = dto.Mark,
-                    Model = dto.Model,
-                    SpecificationModel = dto.SpecificationModel,
-                    YearsBuilt = dto.YearsBuilt ?? new()
-                };
+            Form = new CarFormModel
+            {
+                Mark = dto.Mark ?? string.Empty,
+                Model = dto.Model ?? string.Empty,
+                SpecificationModel = string.IsNullOrWhiteSpace(dto.SpecificationModel) ? null : dto.SpecificationModel,
+                YearsBuilt = dto.YearsBuilt ?? new()
+            };
         }
+
+        EditCtx = new EditContext(Form);
+        // initial validation state
+        IsValid = EditCtx.Validate();
+
+        // update validity when fields change (no ChangeEventArgs/string mismatch)
+        EditCtx.OnFieldChanged += (_, __) =>
+        {
+            IsValid = EditCtx!.Validate();
+            StateHasChanged();
+        };
     }
 
     async Task Save()
     {
-        if (Id.HasValue) await CarAppService.UpdateAsync(Id.Value, Model);
-        else await CarAppService.CreateAsync(Model);
+        Normalize(Form);
+
+        var input = new CreateUpdateCarDto
+        {
+            Mark = Form.Mark,
+            Model = Form.Model,
+            SpecificationModel = string.IsNullOrWhiteSpace(Form.SpecificationModel) ? null : Form.SpecificationModel,
+            YearsBuilt = Form.YearsBuilt ?? new()
+        };
+
+        if (Id.HasValue)
+            await CarAppService.UpdateAsync(Id.Value, input);
+        else
+            await CarAppService.CreateAsync(input);
+
         Back();
     }
 
     void Back() => Nav.NavigateTo("/cars");
+
+    static void Normalize(CarFormModel f)
+    {
+        f.Mark = (f.Mark ?? string.Empty).Trim();
+        f.Model = (f.Model ?? string.Empty).Trim();
+        f.SpecificationModel = string.IsNullOrWhiteSpace(f.SpecificationModel)
+            ? null
+            : f.SpecificationModel.Trim();
+
+        f.YearsBuilt = (f.YearsBuilt ?? new())
+            .Select(y => (y ?? string.Empty).Trim())
+            .Where(y => !string.IsNullOrWhiteSpace(y))
+            .ToList();
+    }
 }

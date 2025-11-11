@@ -1,8 +1,10 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
+using Volo.Abp;
 using Volo.Abp.Application.Dtos;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Domain.Repositories;
@@ -10,8 +12,9 @@ using Volo.Abp.Domain.Repositories;
 namespace VuDrive.ProductSets;
 
 public interface IProductSetAppService :
-    ICrudAppService<ProductSetDto, Guid, PagedAndSortedResultRequestDto, CreateUpdateProductSetDto>
+    ICrudAppService<ProductSetDto, Guid, ProductSetsListInput, CreateUpdateProductSetDto, CreateUpdateProductSetDto>
 { }
+
 
 [Authorize]
 public class ProductSetAppService :
@@ -43,6 +46,9 @@ public class ProductSetAppService :
 
     public override async Task<ProductSetDto> CreateAsync(CreateUpdateProductSetDto input)
     {
+        Normalize(input);
+        Validate(input);
+
         // Create the ProductSet (saves entity)
         var created = await base.CreateAsync(input);
 
@@ -64,6 +70,9 @@ public class ProductSetAppService :
 
     public override async Task<ProductSetDto> UpdateAsync(Guid id, CreateUpdateProductSetDto input)
     {
+        Normalize(input);
+        Validate(input);
+
         // Update scalar fields
         var updated = await base.UpdateAsync(id, input);
 
@@ -90,4 +99,51 @@ public class ProductSetAppService :
 
         return await GetAsync(id);
     }
+
+    private static void Normalize(CreateUpdateProductSetDto x)
+    {
+        x.Name = (x.Name ?? string.Empty).Trim();
+        x.Description = string.IsNullOrWhiteSpace(x.Description) ? null : x.Description.Trim();
+        x.LookVariant = string.IsNullOrWhiteSpace(x.LookVariant) ? null : x.LookVariant.Trim();
+        x.Color = string.IsNullOrWhiteSpace(x.Color) ? null : x.Color.Trim();
+
+        // de-duplicate car ids
+        x.CompatibleCarIds = (x.CompatibleCarIds ?? new List<Guid>()).Distinct().ToList();
+    }
+
+    private static void Validate(CreateUpdateProductSetDto x)
+    {
+        if (string.IsNullOrWhiteSpace(x.Name))
+            throw new UserFriendlyException("Name is required.");
+
+        if (x.SizeInInches <= 0)
+            throw new UserFriendlyException("Size (inches) must be greater than 0.");
+    }
+
+    public async Task<PagedResultDto<ProductSetDto>> GetListAsync(ProductSetsListInput input)
+    {
+        var q = await Repository.GetQueryableAsync();
+
+        string? name = string.IsNullOrWhiteSpace(input.Name) ? null : input.Name!.ToLower();
+
+        q = q
+            .WhereIf(name != null, x => EF.Functions.Like(x.Name.ToLower(), $"%{name}%"))
+            .WhereIf(input.SizeInInches.HasValue, x => x.SizeInInches == input.SizeInInches!.Value);
+
+        var total = await AsyncExecuter.CountAsync(q);
+
+        // Sorting by Name only, support "Name" or "Name DESC" from UI (no Dynamic LINQ)
+        var sorting = (input.Sorting ?? string.Empty).Trim();
+        var desc = sorting.EndsWith("DESC", StringComparison.OrdinalIgnoreCase);
+
+        var page = (desc ? q.OrderByDescending(x => x.Name) : q.OrderBy(x => x.Name))
+            .ThenBy(x => x.Id) // stable secondary sort
+            .PageBy(input.SkipCount, input.MaxResultCount);
+
+        var list = await AsyncExecuter.ToListAsync(page);
+        var dtos = ObjectMapper.Map<List<ProductSet>, List<ProductSetDto>>(list);
+
+        return new PagedResultDto<ProductSetDto>(total, dtos);
+    }
+
 }
