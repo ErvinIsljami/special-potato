@@ -179,7 +179,8 @@ public class CarAppService
         q = q
             .WhereIf(m != null, x => EF.Functions.Like(x.Mark.ToLower(), $"%{m}%"))
             .WhereIf(mdl != null, x => EF.Functions.Like(x.Model.ToLower(), $"%{mdl}%"))
-            .WhereIf(sp != null, x => EF.Functions.Like((x.SpecificationModel ?? string.Empty).ToLower(), $"%{sp}%"));
+            .WhereIf(sp != null, x => EF.Functions.Like((x.SpecificationModel ?? string.Empty).ToLower(), $"%{sp}%"))
+            .WhereIf(input.Status.HasValue, x => x.Status == input.Status!.Value);
 
         var total = await AsyncExecuter.CountAsync(q);
 

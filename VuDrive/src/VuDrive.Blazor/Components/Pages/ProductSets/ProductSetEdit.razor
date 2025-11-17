@@ -51,45 +51,55 @@
 
     <!-- Cars: search-first dropdown (no list before search) -->
     <div class="mb-2">
-        <label class="form-label" for="carSearch">Search Cars (Mark or Model)</label>
-        <div class="position-relative">
+        <label class="form-label" for="carSearch">Search Cars (Mark, Model, or Both)</label>
+        <div class="position-relative" @onfocusout="HandleFocusOut">
             <input id="carSearch"
                    class="form-control"
-                   placeholder="Start typing e.g. Golf or Alfa…"
+                   placeholder="e.g. 'Audi', 'A3', or 'Audi A3'…"
                    value="@CarQuery"
                    @oninput="OnSearchInput"
-                   @onkeydown="HandleSearchKeyDown" />
+                   @onkeydown="HandleSearchKeyDown"
+                   @onfocus="HandleSearchFocus" />
 
             @if (ShowDropdown)
             {
                 <div class="border rounded bg-white shadow-sm position-absolute w-100 mt-1"
-                     style="z-index: 1050; max-height: 540px; overflow:auto;">
-                    @if (SearchResults.Count == 0)
-                    {
-                        <div class="p-2 text-muted">No matches.</div>
-                    }
-                    else
-                    {
-                        @foreach (var car in SearchResults)
+                     style="z-index: 1050; max-height: 540px; display: flex; flex-direction: column;"
+                     @onfocusin="PreventDropdownClose"
+                     @onmousedown="PreventDropdownClose">
+                    <div style="max-height: 480px; overflow: auto;">
+                        @if (SearchResults.Count == 0)
                         {
-                            var checkedNow = Model.CompatibleCarIds.Contains(car.Id);
-                            <label class="d-flex align-items-start gap-2 p-2 border-bottom"
-                                   style="cursor:pointer;">
-                                <input type="checkbox"
-                                       class="form-check-input mt-1"
-                                       checked="@checkedNow"
-                                       @onchange="(ChangeEventArgs e) => ToggleCar(car.Id, e.Value is bool b && b)" />
-                                <div>
-                                    <div><strong>@car.Mark</strong> @car.Model <small class="text-muted">(@car.SpecificationModel)</small></div>
-                                    <div class="text-muted" style="font-size:.9rem;">@string.Join(", ", car.YearsBuilt ?? new())</div>
-                                </div>
-                            </label>
+                            <div class="p-2 text-muted">No matches.</div>
                         }
-                    }
+                        else
+                        {
+                            @foreach (var car in SearchResults)
+                            {
+                                var checkedNow = Model.CompatibleCarIds.Contains(car.Id);
+                                <label class="d-flex align-items-start gap-2 p-2 border-bottom"
+                                       style="cursor:pointer;">
+                                    <input type="checkbox"
+                                           class="form-check-input mt-1"
+                                           checked="@checkedNow"
+                                           @onchange="(ChangeEventArgs e) => ToggleCar(car.Id, e.Value is bool b && b)" />
+                                    <div>
+                                        <div><strong>@car.Mark</strong> @car.Model <small class="text-muted">(@car.SpecificationModel)</small></div>
+                                        <div class="text-muted" style="font-size:.9rem;">@string.Join(", ", car.YearsBuilt ?? new())</div>
+                                    </div>
+                                </label>
+                            }
+                        }
+                    </div>
+                    <div class="p-2 border-top bg-light text-center">
+                        <button type="button" class="btn btn-primary" @onclick="CloseDropdown">
+                            Done (@Model.CompatibleCarIds.Count selected)
+                        </button>
+                    </div>
                 </div>
             }
         </div>
-        <small class="text-muted">Type at least 2 characters. Results list is scrollable if long.</small>
+        <small class="text-muted">Type at least 2 characters. Click "Done" or click outside to close the list.</small>
     </div>
 
     <!-- Show chosen cars as compact badges -->
@@ -134,12 +144,15 @@
     string CarQuery { get; set; } = string.Empty;
     List<CarDto> SearchResults { get; set; } = new();
     System.Threading.CancellationTokenSource? _searchCts;
+    bool _forceHideDropdown = false;
+    bool _preventClose = false;
 
     // Selected cars (for badges)
     List<CarDto> SelectedCars { get; set; } = new();
 
     bool ShowDropdown =>
-        !string.IsNullOrWhiteSpace(CarQuery)
+        !_forceHideDropdown
+        && !string.IsNullOrWhiteSpace(CarQuery)
         && CarQuery.Trim().Length >= 2
         && SearchResults != null;
 
@@ -173,11 +186,46 @@
         {
             // Prevent accidental form submit; handled by Save button
         }
+        else if (string.Equals(e.Key, "Escape", StringComparison.OrdinalIgnoreCase))
+        {
+            CloseDropdown();
+        }
+    }
+
+    void HandleSearchFocus()
+    {
+        _forceHideDropdown = false;
+        StateHasChanged();
+    }
+
+    void PreventDropdownClose()
+    {
+        _preventClose = true;
+    }
+
+    async Task HandleFocusOut(Microsoft.AspNetCore.Components.Web.FocusEventArgs e)
+    {
+        // Small delay to allow click events to fire first
+        await Task.Delay(150);
+
+        if (!_preventClose)
+        {
+            _forceHideDropdown = true;
+            StateHasChanged();
+        }
+        _preventClose = false;
+    }
+
+    void CloseDropdown()
+    {
+        _forceHideDropdown = true;
+        StateHasChanged();
     }
 
     async Task OnSearchInput(ChangeEventArgs e)
     {
         CarQuery = e.Value?.ToString() ?? string.Empty;
+        _forceHideDropdown = false; // Allow dropdown to show again when typing
 
         // Debounce ~250ms
         _searchCts?.Cancel();
@@ -205,27 +253,52 @@
             return;
         }
 
-        // We need OR (Mark OR Model). The list API applies filters with AND,
-        // so call twice and union by Id.
-        var byMark = await CarAppService.GetListAsync(new CarsListInput
-        {
-            Mark = term,
-            MaxResultCount = 200
-        });
+        // Check if the term contains multiple words (e.g., "audi a3")
+        var parts = term.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        var byModel = await CarAppService.GetListAsync(new CarsListInput
+        if (parts.Length >= 2)
         {
-            Model = term,
-            MaxResultCount = 200
-        });
+            // Multi-word search: treat first word as Mark, rest as Model
+            // E.g., "audi a3" -> Mark="audi" AND Model="a3"
+            var mark = parts[0];
+            var model = string.Join(" ", parts.Skip(1));
 
-        SearchResults = byMark.Items
-            .Concat(byModel.Items)
-            .GroupBy(x => x.Id)
-            .Select(g => g.First())
-            .OrderBy(x => x.Mark)
-            .ThenBy(x => x.Model)
-            .ToList();
+            var results = await CarAppService.GetListAsync(new CarsListInput
+            {
+                Mark = mark,
+                Model = model,
+                MaxResultCount = 200
+            });
+
+            SearchResults = results.Items
+                .OrderBy(x => x.Mark)
+                .ThenBy(x => x.Model)
+                .ToList();
+        }
+        else
+        {
+            // Single word search: OR logic (Mark OR Model)
+            // E.g., "audi" or "a3"
+            var byMark = await CarAppService.GetListAsync(new CarsListInput
+            {
+                Mark = term,
+                MaxResultCount = 200
+            });
+
+            var byModel = await CarAppService.GetListAsync(new CarsListInput
+            {
+                Model = term,
+                MaxResultCount = 200
+            });
+
+            SearchResults = byMark.Items
+                .Concat(byModel.Items)
+                .GroupBy(x => x.Id)
+                .Select(g => g.First())
+                .OrderBy(x => x.Mark)
+                .ThenBy(x => x.Model)
+                .ToList();
+        }
 
         StateHasChanged();
     }

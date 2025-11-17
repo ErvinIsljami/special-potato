@@ -11,6 +11,7 @@ public class CarDto : AuditedEntityDto<Guid>
     public string Model { get; set; } = string.Empty;
     public string? SpecificationModel { get; set; }
     public List<string> YearsBuilt { get; set; } = new();
+    public CarStatus Status { get; set; } = CarStatus.NotYetStarted;
 }
 
 public class CreateUpdateCarDto
@@ -25,6 +26,7 @@ public class CreateUpdateCarDto
 
     public string? SpecificationModel { get; set; } // optional
     public List<string> YearsBuilt { get; set; } = new();
+    public CarStatus Status { get; set; } = CarStatus.NotYetStarted;
 }
 
 public class ImportCarsUploadDto
@@ -38,4 +40,5 @@ public class CarsListInput : PagedAndSortedResultRequestDto
     public string? Mark { get; set; }
     public string? Model { get; set; }
     public string? Spec { get; set; } // SpecificationModel substring
+    public CarStatus? Status { get; set; }
 }

@@ -14,18 +14,21 @@ public class Car : FullAuditedAggregateRoot<Guid>
     // List of specific years (e.g. "2012", "2013")
     public List<string> YearsBuilt { get; set; } = new();
 
+    public CarStatus Status { get; set; } = CarStatus.NotYetStarted;
+
     // Back-link for many-to-many (no UI exposure required)
     public virtual ICollection<VuDrive.ProductSets.ProductSetCar> ProductSets { get; set; }
         = new List<VuDrive.ProductSets.ProductSetCar>();
 
     protected Car() { }
 
-    public Car(Guid id, string mark, string model, string spec, IEnumerable<string>? yearsBuilt = null)
+    public Car(Guid id, string mark, string model, string spec, IEnumerable<string>? yearsBuilt = null, CarStatus status = CarStatus.NotYetStarted)
         : base(id)
     {
         Mark = mark;
         Model = model;
         SpecificationModel = spec;
         YearsBuilt = yearsBuilt?.ToList() ?? new List<string>();
+        Status = status;
     }
 }

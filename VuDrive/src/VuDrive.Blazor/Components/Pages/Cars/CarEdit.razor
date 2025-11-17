@@ -33,6 +33,15 @@
         <small class="text-muted">Example: 2012, 2013, 2016</small>
     </div>
 
+    <div class="mb-3">
+        <label class="form-label" for="status">Status</label>
+        <InputSelect id="status" class="form-control" @bind-Value="Form.Status">
+            <option value="@CarStatus.NotYetStarted">Not yet started</option>
+            <option value="@CarStatus.InProgress">In progress</option>
+            <option value="@CarStatus.Done">Done</option>
+        </InputSelect>
+    </div>
+
     <button type="submit" class="btn btn-primary me-2" disabled="@(!IsValid)">Save</button>
     <button type="button" class="btn btn-secondary" @onclick="Back">Cancel</button>
 
@@ -59,6 +68,8 @@
         public string? SpecificationModel { get; set; } // optional
 
         public List<string> YearsBuilt { get; set; } = new();
+
+        public CarStatus Status { get; set; } = CarStatus.NotYetStarted;
     }
 
     private CarFormModel Form = new();
@@ -84,7 +95,8 @@
                 Mark = dto.Mark ?? string.Empty,
                 Model = dto.Model ?? string.Empty,
                 SpecificationModel = string.IsNullOrWhiteSpace(dto.SpecificationModel) ? null : dto.SpecificationModel,
-                YearsBuilt = dto.YearsBuilt ?? new()
+                YearsBuilt = dto.YearsBuilt ?? new(),
+                Status = dto.Status
             };
         }
 
@@ -109,7 +121,8 @@
             Mark = Form.Mark,
             Model = Form.Model,
             SpecificationModel = string.IsNullOrWhiteSpace(Form.SpecificationModel) ? null : Form.SpecificationModel,
-            YearsBuilt = Form.YearsBuilt ?? new()
+            YearsBuilt = Form.YearsBuilt ?? new(),
+            Status = Form.Status
         };
 
         if (Id.HasValue)
