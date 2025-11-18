@@ -1,6 +1,7 @@
 ﻿@page "/cars/edit/{Id:guid?}"
 @attribute [Authorize]
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.WebUtilities
 @inject ICarAppService CarAppService
 @inject NavigationManager Nav
 
@@ -53,6 +54,8 @@
 @code {
     [Parameter] public Guid? Id { get; set; }
 
+    private string? ReturnUrl { get; set; }
+
     // Local form model with strong validation
     public class CarFormModel
     {
@@ -87,6 +90,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Capture the return URL from query parameters
+        var uri = new Uri(Nav.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+        if (query.TryGetValue("returnUrl", out var returnUrlVal))
+            ReturnUrl = returnUrlVal;
+
         if (Id.HasValue)
         {
             var dto = await CarAppService.GetAsync(Id.Value);
@@ -133,7 +142,7 @@
         Back();
     }
 
-    void Back() => Nav.NavigateTo("/cars");
+    void Back() => Nav.NavigateTo(ReturnUrl ?? "/cars");
 
     static void Normalize(CarFormModel f)
     {

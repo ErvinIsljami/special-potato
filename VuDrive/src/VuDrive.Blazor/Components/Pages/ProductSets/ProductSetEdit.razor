@@ -51,11 +51,11 @@
 
     <!-- Cars: search-first dropdown (no list before search) -->
     <div class="mb-2">
-        <label class="form-label" for="carSearch">Search Cars (Mark, Model, or Both)</label>
+        <label class="form-label" for="carSearch">Search Cars (Mark, Model, Specification, or Combined)</label>
         <div class="position-relative" @onfocusout="HandleFocusOut">
             <input id="carSearch"
                    class="form-control"
-                   placeholder="e.g. 'Audi', 'A3', or 'Audi A3'…"
+                   placeholder="e.g. 'Audi', 'Gen3', 'Audi A3', or 'Audi A3 Gen3'…"
                    value="@CarQuery"
                    @oninput="OnSearchInput"
                    @onkeydown="HandleSearchKeyDown"
@@ -253,15 +253,36 @@
             return;
         }
 
-        // Check if the term contains multiple words (e.g., "audi a3")
+        // Check if the term contains multiple words (e.g., "audi a3" or "audi a3 gen3")
         var parts = term.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-        if (parts.Length >= 2)
+        if (parts.Length >= 3)
         {
-            // Multi-word search: treat first word as Mark, rest as Model
+            // Three-word search: treat first word as Mark, second as Model, rest as Spec
+            // E.g., "audi a3 gen3" -> Mark="audi" AND Model="a3" AND Spec="gen3"
+            var mark = parts[0];
+            var model = parts[1];
+            var spec = string.Join(" ", parts.Skip(2));
+
+            var results = await CarAppService.GetListAsync(new CarsListInput
+            {
+                Mark = mark,
+                Model = model,
+                Spec = spec,
+                MaxResultCount = 200
+            });
+
+            SearchResults = results.Items
+                .OrderBy(x => x.Mark)
+                .ThenBy(x => x.Model)
+                .ToList();
+        }
+        else if (parts.Length == 2)
+        {
+            // Two-word search: treat first word as Mark, second as Model
             // E.g., "audi a3" -> Mark="audi" AND Model="a3"
             var mark = parts[0];
-            var model = string.Join(" ", parts.Skip(1));
+            var model = parts[1];
 
             var results = await CarAppService.GetListAsync(new CarsListInput
             {
@@ -277,8 +298,8 @@
         }
         else
         {
-            // Single word search: OR logic (Mark OR Model)
-            // E.g., "audi" or "a3"
+            // Single word search: OR logic (Mark OR Model OR Spec)
+            // E.g., "audi" or "a3" or "gen3"
             var byMark = await CarAppService.GetListAsync(new CarsListInput
             {
                 Mark = term,
@@ -291,8 +312,15 @@
                 MaxResultCount = 200
             });
 
+            var bySpec = await CarAppService.GetListAsync(new CarsListInput
+            {
+                Spec = term,
+                MaxResultCount = 200
+            });
+
             SearchResults = byMark.Items
                 .Concat(byModel.Items)
+                .Concat(bySpec.Items)
                 .GroupBy(x => x.Id)
                 .Select(g => g.First())
                 .OrderBy(x => x.Mark)

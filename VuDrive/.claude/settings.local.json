@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(dotnet ef migrations:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(dotnet build:*)"
     ],
     "deny": [],
     "ask": []

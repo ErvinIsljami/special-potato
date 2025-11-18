@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @using VuDrive.Cars
 @using Volo.Abp.Application.Dtos
+@using Microsoft.AspNetCore.WebUtilities
 @inject ICarAppService CarAppService
 @inject NavigationManager Nav
 
@@ -134,7 +135,35 @@
 
     string? currentSorting;   // "Mark" or "Mark DESC"
 
-    protected override async Task OnInitializedAsync() => await Load();
+    protected override async Task OnInitializedAsync()
+    {
+        // Restore state from query parameters
+        var uri = new Uri(Nav.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("page", out var pageVal) && int.TryParse(pageVal, out var p))
+            pageIndex = p;
+
+        if (query.TryGetValue("size", out var sizeVal) && int.TryParse(sizeVal, out var s))
+            pageSize = s;
+
+        if (query.TryGetValue("mark", out var markVal))
+            filters.Mark = markVal;
+
+        if (query.TryGetValue("model", out var modelVal))
+            filters.Model = modelVal;
+
+        if (query.TryGetValue("spec", out var specVal))
+            filters.Spec = specVal;
+
+        if (query.TryGetValue("status", out var statusVal) && Enum.TryParse<CarStatus>(statusVal, out var status))
+            filters.Status = status;
+
+        if (query.TryGetValue("sort", out var sortVal))
+            currentSorting = sortVal;
+
+        await Load();
+    }
 
     async Task Load()
     {
@@ -152,10 +181,82 @@
         var res = await CarAppService.GetListAsync(input);
         items = res.Items.ToList();
         totalCount = (int)res.TotalCount;
+
+        // Update URL with current state
+        UpdateUrl();
     }
 
-    void Create() => Nav.NavigateTo("/cars/edit");
-    void Edit(Guid id) => Nav.NavigateTo($"/cars/edit/{id}");
+    void UpdateUrl()
+    {
+        var queryParams = new List<string>();
+
+        if (pageIndex > 0)
+            queryParams.Add($"page={pageIndex}");
+
+        if (pageSize != 50)
+            queryParams.Add($"size={pageSize}");
+
+        if (!string.IsNullOrWhiteSpace(filters.Mark))
+            queryParams.Add($"mark={Uri.EscapeDataString(filters.Mark)}");
+
+        if (!string.IsNullOrWhiteSpace(filters.Model))
+            queryParams.Add($"model={Uri.EscapeDataString(filters.Model)}");
+
+        if (!string.IsNullOrWhiteSpace(filters.Spec))
+            queryParams.Add($"spec={Uri.EscapeDataString(filters.Spec)}");
+
+        if (filters.Status.HasValue)
+            queryParams.Add($"status={filters.Status.Value}");
+
+        if (!string.IsNullOrWhiteSpace(currentSorting))
+            queryParams.Add($"sort={Uri.EscapeDataString(currentSorting)}");
+
+        var queryString = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
+        var newUrl = "/cars" + queryString;
+
+        Nav.NavigateTo(newUrl, replace: true);
+    }
+
+    void Create()
+    {
+        var returnUrl = GetCurrentUrlWithState();
+        Nav.NavigateTo($"/cars/edit?returnUrl={Uri.EscapeDataString(returnUrl)}");
+    }
+
+    void Edit(Guid id)
+    {
+        var returnUrl = GetCurrentUrlWithState();
+        Nav.NavigateTo($"/cars/edit/{id}?returnUrl={Uri.EscapeDataString(returnUrl)}");
+    }
+
+    string GetCurrentUrlWithState()
+    {
+        var queryParams = new List<string>();
+
+        if (pageIndex > 0)
+            queryParams.Add($"page={pageIndex}");
+
+        if (pageSize != 50)
+            queryParams.Add($"size={pageSize}");
+
+        if (!string.IsNullOrWhiteSpace(filters.Mark))
+            queryParams.Add($"mark={Uri.EscapeDataString(filters.Mark)}");
+
+        if (!string.IsNullOrWhiteSpace(filters.Model))
+            queryParams.Add($"model={Uri.EscapeDataString(filters.Model)}");
+
+        if (!string.IsNullOrWhiteSpace(filters.Spec))
+            queryParams.Add($"spec={Uri.EscapeDataString(filters.Spec)}");
+
+        if (filters.Status.HasValue)
+            queryParams.Add($"status={filters.Status.Value}");
+
+        if (!string.IsNullOrWhiteSpace(currentSorting))
+            queryParams.Add($"sort={Uri.EscapeDataString(currentSorting)}");
+
+        var queryString = queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "";
+        return "/cars" + queryString;
+    }
 
     async Task Delete(Guid id)
     {
