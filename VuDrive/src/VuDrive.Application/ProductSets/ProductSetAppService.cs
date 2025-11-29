@@ -13,7 +13,9 @@ namespace VuDrive.ProductSets;
 
 public interface IProductSetAppService :
     ICrudAppService<ProductSetDto, Guid, ProductSetsListInput, CreateUpdateProductSetDto, CreateUpdateProductSetDto>
-{ }
+{
+    Task<ProductSetDto> CopyAsync(Guid id);
+}
 
 
 [Authorize]
@@ -144,6 +146,35 @@ public class ProductSetAppService :
         var dtos = ObjectMapper.Map<List<ProductSet>, List<ProductSetDto>>(list);
 
         return new PagedResultDto<ProductSetDto>(total, dtos);
+    }
+
+    public async Task<ProductSetDto> CopyAsync(Guid id)
+    {
+        // Get original product set
+        var original = await Repository.GetAsync(id);
+
+        // Get compatible car IDs from the original
+        var linkQuery = await _linkRepo.GetQueryableAsync();
+        var compatibleCarIds = linkQuery
+            .Where(x => x.ProductSetId == id)
+            .Select(x => x.CarId)
+            .ToList();
+
+        // Create copy DTO with "Copy of" prefix
+        var copyInput = new CreateUpdateProductSetDto
+        {
+            Name = $"Copy of {original.Name}",
+            Description = original.Description,
+            SizeInInches = original.SizeInInches,
+            LookVariant = original.LookVariant,
+            Color = original.Color,
+            Cd = original.Cd,
+            BuiltInDisplay = original.BuiltInDisplay,
+            CompatibleCarIds = compatibleCarIds
+        };
+
+        // Use existing CreateAsync which handles links
+        return await CreateAsync(copyInput);
     }
 
 }
