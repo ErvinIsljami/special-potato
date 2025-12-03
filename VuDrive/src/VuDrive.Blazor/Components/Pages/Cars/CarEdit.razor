@@ -30,7 +30,7 @@
 
     <div class="mb-3">
         <label class="form-label" for="years">Years Built (comma separated)</label>
-        <InputText id="years" class="form-control" @bind-Value="YearsString" />
+        <input id="years" class="form-control" value="@YearsString" @onchange="OnYearsChanged" />
         <small class="text-muted">Example: 2012, 2013, 2016</small>
     </div>
 
@@ -79,13 +79,24 @@
     private EditContext? EditCtx;
     private bool IsValid;
 
+    private string _yearsString = string.Empty;
+
     string YearsString
     {
-        get => string.Join(", ", Form.YearsBuilt ?? new());
-        set => Form.YearsBuilt = (value ?? string.Empty)
-            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(y => !string.IsNullOrWhiteSpace(y))
-            .ToList();
+        get => _yearsString;
+        set
+        {
+            _yearsString = value ?? string.Empty;
+            Form.YearsBuilt = _yearsString
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(y => !string.IsNullOrWhiteSpace(y))
+                .ToList();
+        }
+    }
+
+    void OnYearsChanged(ChangeEventArgs e)
+    {
+        YearsString = e.Value?.ToString() ?? string.Empty;
     }
 
     protected override async Task OnInitializedAsync()
@@ -107,6 +118,7 @@
                 YearsBuilt = dto.YearsBuilt ?? new(),
                 Status = dto.Status
             };
+            _yearsString = string.Join(", ", Form.YearsBuilt);
         }
 
         EditCtx = new EditContext(Form);
