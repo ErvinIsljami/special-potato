@@ -39,7 +39,18 @@ public class CarAppService
     {
         Normalize(input);
         ValidateRequired(input);
-        return await base.UpdateAsync(id, input);
+
+        // Manually update to ensure EF detects YearsBuilt changes (value converter issue)
+        var entity = await Repository.GetAsync(id);
+        entity.Mark = input.Mark;
+        entity.Model = input.Model;
+        entity.SpecificationModel = input.SpecificationModel;
+        entity.Status = input.Status;
+        entity.YearsBuilt = input.YearsBuilt ?? new List<string>();
+
+        await Repository.UpdateAsync(entity, autoSave: true);
+
+        return ObjectMapper.Map<Car, CarDto>(entity);
     }
 
     private static void Normalize(CreateUpdateCarDto input)
