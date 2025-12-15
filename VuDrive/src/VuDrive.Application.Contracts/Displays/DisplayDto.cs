@@ -13,6 +13,7 @@ public class DisplayDto : AuditedEntityDto<Guid>
     public int Ram { get; set; }
     public int? Memory { get; set; }
     public string? Cpu { get; set; }
+    public int Count { get; set; }
 }
 
 public class CreateUpdateDisplayDto
@@ -32,10 +33,13 @@ public class CreateUpdateDisplayDto
     public string? AndroidVersion { get; set; }
 
     [Range(0, int.MaxValue)]
-    public int? Memory { get; set; } // 0 means “unspecified/unknown” if you like
+    public int? Memory { get; set; } // 0 means "unspecified/unknown" if you like
 
     [MaxLength(128)]
     public string? Cpu { get; set; }
+
+    [Range(0, int.MaxValue, ErrorMessage = "Count must be 0 or greater.")]
+    public int Count { get; set; }
 }
 
 public class DisplaysListInput : PagedAndSortedResultRequestDto

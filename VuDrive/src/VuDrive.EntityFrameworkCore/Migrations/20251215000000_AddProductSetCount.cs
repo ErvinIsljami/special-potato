@@ -16,6 +16,13 @@ namespace VuDrive.Migrations
                 type: "INTEGER",
                 nullable: false,
                 defaultValue: 0);
+
+            migrationBuilder.AddColumn<int>(
+                name: "Count",
+                table: "AppDisplays",
+                type: "INTEGER",
+                nullable: false,
+                defaultValue: 0);
         }
 
         /// <inheritdoc />
@@ -24,6 +31,10 @@ namespace VuDrive.Migrations
             migrationBuilder.DropColumn(
                 name: "Count",
                 table: "AppProductSets");
+
+            migrationBuilder.DropColumn(
+                name: "Count",
+                table: "AppDisplays");
         }
     }
 }

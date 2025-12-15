@@ -11,6 +11,7 @@ public class Display : FullAuditedAggregateRoot<Guid>
     public int Ram { get; set; }
     public int? Memory { get; set; }
     public string? Cpu { get; set; } // optional
+    public int Count { get; set; } = 0;
 
     protected Display() { }
 

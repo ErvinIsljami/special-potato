@@ -40,17 +40,18 @@
             <th>Memory</th>
             <th>Android</th>
             <th>CPU</th>
+            <th>Count</th>
             <th style="width:180px;"></th>
         </tr>
     </thead>
     <tbody>
         @if (items is null)
         {
-            <tr><td colspan="7" class="text-muted">Loading…</td></tr>
+            <tr><td colspan="8" class="text-muted">Loading…</td></tr>
         }
         else if (items.Count == 0)
         {
-            <tr><td colspan="7" class="text-muted">No results.</td></tr>
+            <tr><td colspan="8" class="text-muted">No results.</td></tr>
         }
         else
         {
@@ -63,6 +64,7 @@
                     <td>@(d.Memory?.ToString() ?? "—")</td>
                     <td>@d.AndroidVersion</td>
                     <td>@d.Cpu</td>
+                    <td>@d.Count</td>
                     <td class="text-end">
                         <button class="btn btn-sm btn-secondary me-2" @onclick="() => Edit(d.Id)">Edit</button>
                         <button class="btn btn-sm btn-danger" @onclick="() => Delete(d.Id)">Delete</button>

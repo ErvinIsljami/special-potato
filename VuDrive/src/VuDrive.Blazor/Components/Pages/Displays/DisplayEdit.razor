@@ -46,6 +46,12 @@
         <ValidationMessage For="() => Form.Cpu" />
     </div>
 
+    <div class="mb-3">
+        <label class="form-label" for="count">Count</label>
+        <InputNumber id="count" class="form-control" @bind-Value="Form.Count" min="0" />
+        <ValidationMessage For="() => Form.Count" />
+    </div>
+
     <button type="submit" class="btn btn-primary me-2" disabled="@(!IsValid)">Save</button>
     <button type="button" class="btn btn-secondary" @onclick="Back">Cancel</button>
 
@@ -79,6 +85,9 @@
 
         [MaxLength(128)]
         public string? Cpu { get; set; }
+
+        [Range(0, int.MaxValue, ErrorMessage = "Count must be 0 or greater.")]
+        public int Count { get; set; }
     }
 
     private DisplayFormModel Form = new();
@@ -97,7 +106,8 @@
                 AndroidVersion = string.IsNullOrWhiteSpace(dto.AndroidVersion) ? null : dto.AndroidVersion,
                 Ram = dto.Ram,
                 Memory = dto.Memory,
-                Cpu = string.IsNullOrWhiteSpace(dto.Cpu) ? null : dto.Cpu
+                Cpu = string.IsNullOrWhiteSpace(dto.Cpu) ? null : dto.Cpu,
+                Count = dto.Count
             };
         }
 
@@ -122,7 +132,8 @@
             Ram = Form.Ram,
             Memory = Form.Memory,
             AndroidVersion = string.IsNullOrWhiteSpace(Form.AndroidVersion) ? null : Form.AndroidVersion,
-            Cpu = string.IsNullOrWhiteSpace(Form.Cpu) ? null : Form.Cpu
+            Cpu = string.IsNullOrWhiteSpace(Form.Cpu) ? null : Form.Cpu,
+            Count = Form.Count
         };
 
         if (Id.HasValue)

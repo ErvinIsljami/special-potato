@@ -1871,6 +1871,9 @@ namespace VuDrive.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("ConcurrencyStamp");
 
+                    b.Property<int>("Count")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Cpu")
                         .HasColumnType("TEXT");
 
