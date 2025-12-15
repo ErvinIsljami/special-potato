@@ -14,6 +14,7 @@ public class ProductSetDto : AuditedEntityDto<Guid>
     public string? Color { get; set; }
     public bool Cd { get; set; }
     public bool BuiltInDisplay { get; set; }
+    public int Count { get; set; }
 
     // IDs of selected Cars
     public List<Guid> CompatibleCarIds { get; set; } = new();
@@ -39,6 +40,9 @@ public class CreateUpdateProductSetDto
 
     public bool Cd { get; set; }
     public bool BuiltInDisplay { get; set; }
+
+    [Range(0, int.MaxValue, ErrorMessage = "Count must be 0 or greater.")]
+    public int Count { get; set; }
 
     // IDs of selected Cars
     public List<Guid> CompatibleCarIds { get; set; } = new();

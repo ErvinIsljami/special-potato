@@ -13,6 +13,7 @@ public class ProductSet : FullAuditedAggregateRoot<Guid>
     public string? Color { get; set; } = default!;
     public bool Cd { get; set; } = false;
     public bool BuiltInDisplay { get; set; } = false;
+    public int Count { get; set; } = 0;
 
     // Many-to-many link to Cars
     public virtual ICollection<ProductSetCar> CompatibleCars { get; set; } = new List<ProductSetCar>();

@@ -1948,6 +1948,9 @@ namespace VuDrive.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("ConcurrencyStamp");
 
+                    b.Property<int>("Count")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("CreationTime")
                         .HasColumnType("TEXT")
                         .HasColumnName("CreationTime");

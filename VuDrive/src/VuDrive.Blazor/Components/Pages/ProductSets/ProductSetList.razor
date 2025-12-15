@@ -37,6 +37,7 @@
             <th>Size (in)</th>
             <th>Look</th>
             <th>Color</th>
+            <th>Count</th>
             <th>CD</th>
             <th>Built-in Display</th>
             <th style="width:250px;"></th>
@@ -45,11 +46,11 @@
     <tbody>
         @if (Items is null)
         {
-            <tr><td colspan="7" class="text-muted">Loading…</td></tr>
+            <tr><td colspan="8" class="text-muted">Loading…</td></tr>
         }
         else if (Items.Count == 0)
         {
-            <tr><td colspan="7" class="text-muted">No results.</td></tr>
+            <tr><td colspan="8" class="text-muted">No results.</td></tr>
         }
         else
         {
@@ -60,6 +61,7 @@
                     <td>@x.SizeInInches</td>
                     <td>@x.LookVariant</td>
                     <td>@x.Color</td>
+                    <td>@x.Count</td>
                     <td>@(x.Cd ? "Yes" : "No")</td>
                     <td>@(x.BuiltInDisplay ? "Yes" : "No")</td>
                     <td>

@@ -39,6 +39,12 @@
         <ValidationMessage For="() => Model.Color" />
     </div>
 
+    <div class="mb-3">
+        <label class="form-label" for="count">Count</label>
+        <InputNumber id="count" class="form-control" TValue="int" @bind-Value="Model.Count" min="0" />
+        <ValidationMessage For="() => Model.Count" />
+    </div>
+
     <div class="form-check mb-2">
         <InputCheckbox id="cd" class="form-check-input" @bind-Value="Model.Cd" />
         <label class="form-check-label" for="cd">CD</label>
@@ -170,6 +176,7 @@
                 Color = dto.Color,
                 Cd = dto.Cd,
                 BuiltInDisplay = dto.BuiltInDisplay,
+                Count = dto.Count,
                 CompatibleCarIds = dto.CompatibleCarIds ?? new()
             };
 
